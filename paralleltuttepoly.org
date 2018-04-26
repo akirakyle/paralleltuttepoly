@@ -181,6 +181,13 @@ http://kitchingroup.cheme.cmu.edu/blog/2014/02/04/Literate-programming-example-w
 
 
 * Code
+** .gitignore
+#+begin_src .gitignore :tangle .gitignore
+# Ignore everything
+*
+# except these files
+!paralleltuttepoly.org
+#+end_src
 
 ** Makefile
 #+begin_src makefile :tangle Makefile
