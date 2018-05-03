@@ -207,11 +207,13 @@ INITSEED: seed=416931912
 
 ** Makefile
 #+begin_src makefile :tangle Makefile
-nauty/nauty.a:
-	$(MAKE) -C nauty nauty.a
+# nauty/nauty.a:
+# 	$(MAKE) -C nauty nauty.a
+# tutte: tutte.c nauty/nauty.h nauty/nauty.a
+# 	gcc -o tutte tutte.c nauty/nauty.a -Inauty
 
-tutte: tutte.c nauty/nauty.h nauty/nauty.a
-	gcc -o tutte tutte.c nauty/nauty.a -Inauty
+tutte: tutte.c nauty/nausparse.h nauty/nausparse.c
+	gcc -o tutte tutte.c nauty/nausparse.c -Inauty
 
 execute: tutte
 	./tutte test.g6
@@ -273,53 +275,91 @@ I|eMID@WG
 
 #define NOT_CONNECTED 0x00
 
+#define MG_VDEM(mgp,vv,dd,ee,mm) do { \
+vv = ((sparsegraph*)(mgp))->g->v; \
+dd = ((sparsegraph*)(mgp))->g->d; \
+ee = ((sparsegraph*)(mgp))->g->e; \
+mm = ((sparsegraph*)(mgp))->mult; \
+} while(0)
+
 int verbose = 0;
-
-
 #+end_src
 
 ** graph data structure
 #+name: graphs
 #+begin_src c
 typedef struct mgraph
-{ // a multigraph
-  graph *g;
-  int *l;
-  int m;
-  int n;
-  size_t g_sz;
-  size_t l_sz;
+{ // an undirected multigraph
+  sparsegraph *g;
+  int *mult; // multiplicity of "virtual mulitedge" vertex, 0 if normal vertex
 } mgraph;
 
 typedef struct edge
 {
-  int u;
-  int v;
+  int a;
+  int b;
+  int virt;
 } edge;
+
+mgraph *
+new_mgraph(int nv, int nde)
+{
+  SG_DECL(sg);
+  SG_ALLOC(sg, nv, nde, "malloc sg");
+
+  mgraph *g = (mgraph *)malloc(sizeof(mgraph));
+  g->g = sg;
+  g->mult = (int *)calloc(sg->nv, sizeof(int));
+  return g;
+}
+
+mgraph *
+new_mgraph_from_graph(sparsegraph *sg)
+{
+  mgraph *g = (mgraph *)malloc(sizeof(mgraph));
+  g->g = sg;
+  g->mult = (int *)calloc(sg->nv, sizeof(int));
+  return g;
+}
+
+mgraph *
+new_mgraph_from_mgraph(mgraph *og, int nv, int nde)
+{ //nv > g->g->nv and nde > g->g->nde
+  SG_DECL(sg);
+  SG_ALLOC(sg, nv, nde, "malloc sg");
+
+  mgraph *g = (mgraph *)malloc(sizeof(mgraph));
+  copy_sg(og->g, sg);
+  g->g = sg;
+  g->mult = (int *)malloc(nv * sizeof(int));
+  memcpy(g->mult, og->mult, nv * sizeof(int));
+  return g;
+}
 
 void
 free_mgraph(mgraph *g)
 {
-  DYNFREE(g->g, g->g_sz);
-  DYNFREE(g->l, g->l_sz);
+  free(g->mult);
+  SG_FREE(g->g);
   free(g);
 }
 
-mgraph *
-new_mgraph(int n, int m)
+edge
+to_edge(mgraph *g, int a, int b)
 {
-  DYNALLSTAT(int,lab,lab_sz);
-  DYNALLSTAT(graph,ng,ng_sz);
-
-  DYNALLOC1(int,lab,lab_sz,n,"malloc");
-  DYNALLOC2(graph,ng,ng_sz,m,n,"malloc");
-
-  mgraph *g = (mgraph *)malloc(sizeof(mgraph));
-
-  g->n = n; g->m = m;
-  g->l = lab; g->l_sz = lab_sz;
-  g->g = ng; g->g_sz = ng_sz;
-  return g;
+  MG_VDEM(g,v,d,e,m);
+  if (!(m[a]) && !(m[a])) return (edge){ .a = a, .b = b, .virt = -1};
+  if (!(m[a]))
+    {
+    int c = (e[v[b]] == a) ? e[v[a]+1] : e[v[b]];
+    return (edge){ .a = a, .b = c, .virt = b};
+    }
+  if (!(m[b]))
+    {
+    int c = (e[v[a]] == b) ? e[v[b]+1] : e[v[a]];
+    return (edge){ .a = c, .b = b, .virt = a};
+    }
+  fprintf(stderr, "invalid pair passed to_edge\n");
 }
 
 typedef struct mgraph_info
@@ -349,6 +389,16 @@ typedef struct poly
   int x_deg;
 } poly;
 
+poly *
+new_poly(x_deg, y_deg)
+{
+  poly *p = (poly *)calloc(1, sizeof(poly));
+  p->c = (long *)calloc((x_deg+1)*(y_deg+1), sizeof(long));
+  p->x_deg = x_deg;
+  p->y_deg = y_deg;
+  return p;
+}
+
 void
 free_poly(poly *p)
 {
@@ -359,29 +409,26 @@ free_poly(poly *p)
 long *
 poly_coeff(poly *A, int x, int y)
 {
-  if (x >= A->x_deg) return 0;
-  if (y >= A->y_deg) return 0;
+  if (x > A->x_deg) return 0;
+  if (y > A->y_deg) return 0;
   return &A->c[y + x*A->y_deg];
 }
+
 void
 print_poly(FILE *fout, poly *p)
 {
-  for (int x = 0; x < p->x_deg; x++)
-    for (int y = 0; y < p->y_deg; y++)
-      fprintf(fout, "%ldx^%dy^%d\n", *poly_coeff(p, x, y), x+1, y+1);
+  for (int x = 0; x <= p->x_deg; x++)
+    for (int y = 0; y <= p->y_deg; y++)
+      fprintf(fout, "%ldx^%dy^%d\n", *poly_coeff(p, x, y), x, y);
 }
 
 poly *
 poly_add(poly *A, poly *B)
 {
-  poly *C = (poly *)calloc(1, sizeof(poly));
-  C->x_deg = MAX(A->x_deg, B->x_deg);
-  C->y_deg = MAX(A->y_deg, B->y_deg);
-  C->c = (long *)calloc((C->x_deg)*(C->y_deg), sizeof(long));
-
-  for (int x = 0; x < C->x_deg; x++)
-      for (int y = 0; y < C->y_deg; y++)
-         ,*poly_coeff(C, x, y) = *poly_coeff(A, x, y) + *poly_coeff(B, x, y);
+  poly *C = new_poly(MAX(A->x_deg, B->x_deg), MAX(A->y_deg, B->y_deg));
+  for (int x = 0; x <= C->x_deg; x++)
+    for (int y = 0; y <= C->y_deg; y++)
+      ,*poly_coeff(C, x, y) = *poly_coeff(A, x, y) + *poly_coeff(B, x, y);
   free_poly(A); free_poly(B);
   return C;
 }
@@ -389,15 +436,12 @@ poly_add(poly *A, poly *B)
 poly *
 poly_mult(poly *A, poly *B)
 {
-  poly *C = (poly *)calloc(1, sizeof(poly));
-  C->x_deg = A->x_deg + B->x_deg;
-  C->y_deg = A->y_deg + B->y_deg;
-  C->c = (long *)calloc((C->x_deg)*(C->y_deg), sizeof(long));
+  poly *C = new_poly((A->x_deg + B->x_deg), (A->y_deg + B->y_deg));
 
-  for (int ax = 0; ax < A->x_deg; ax++)
-    for (int ay = 0; ay < A->y_deg; ay++)
-      for (int bx = 0; bx < B->x_deg; bx++)
-        for (int by = 0; by < B->y_deg; by++)
+  for (int ax = 0; ax <= A->x_deg; ax++)
+    for (int ay = 0; ay <= A->y_deg; ay++)
+      for (int bx = 0; bx <= B->x_deg; bx++)
+        for (int by = 0; by <= B->y_deg; by++)
           ,*poly_coeff(C, ax+bx, ay+by) = ( (*poly_coeff(A, ax, ay)) *
                                            (*poly_coeff(B, bx, by)) );
   free_poly(A); free_poly(B);
@@ -408,80 +452,36 @@ poly_mult(poly *A, poly *B)
 ** tarjan graph search
 #+name: tarjan
 #+begin_src c
-poly * tutte(mgraph *g);
+/*
+  poly * tutte(mgraph *g);
 
-mgraph_info *
-search_mgraph(mgraph *g)
+  mgraph_info *
+  search_mgraph(mgraph *g)
+  {
+
+
+  }
+,*/
+
+int
+bridge_helper(mgraph *g, int a, int c)
 {
-  return NULL;
-  /* Number of loops */
-  /*
-  set *gi;
-  int i,nl;
+  MG_VDEM(g,v,d,e,m);
+  if (a == c) return 1;
+  else
+    for (int i = 0; i < d[c]; i++)
+      if bridge_helper(g, u, e[v[c] + i]) return 1;
+  return 0;
+}
 
-  nl = 0;
-  for (i = 0, gi = g; i < n; ++i, gi += m)
-    if (ISELEMENT(gi,i)) ++nl;
-
-  return nl;
-  ,*/
-  /* test if g is biconnected */
-  /*
-  int sp,v,vc;
-  int numvis;
-  set *gv;
-#if MAXN
-  int num[MAXN],lp[MAXN],stack[MAXN];
-#else
-  DYNALLSTAT(int,num,num_sz);
-  DYNALLSTAT(int,lp,lp_sz);
-  DYNALLSTAT(int,stack,stack_sz);
-#endif
-
-  if (n <= 2) return FALSE;
-  if (m == 1) return isbiconnected1(g,n);
-
-#if !MAXN
-  DYNALLOC1(int,num,num_sz,n,"isbiconnected");
-  DYNALLOC1(int,lp,lp_sz,n,"isbiconnected");
-  DYNALLOC1(int,stack,stack_sz,n,"isbiconnected");
-#endif
- 
-  num[0] = 0;
-  for (v = 1; v < n; ++v) num[v] = -1;
-  lp[0] = 0;
-  numvis = 1;
-  sp = 0;
-  v = 0;
-  vc = -1;
-  gv = (set*)g;
- 
-  for (;;)
-    {
-      vc = nextelement(gv,m,vc);
-      if (vc < 0)
-        {
-          if (sp <= 1)  return numvis == n;
-          vc = v;
-          v = stack[--sp];
-          gv = GRAPHROW(g,v,m);
-          if (lp[vc] >= num[v])  return FALSE;
-          if (lp[vc] < lp[v])    lp[v] = lp[vc];
-        }
-      else if (num[vc] < 0)
-        {
-          stack[++sp] = vc;
-          v = vc;
-          gv = GRAPHROW(g,v,m);
-          vc = -1;
-          lp[v] = num[v] = numvis++;
-        }
-      else if (vc != v)
-        {
-          if (num[vc] < lp[v])  lp[v] = num[vc];
-        }
-    }
-  ,*/
+int
+is_bridge(mgraph *g, int a, int b)
+{
+  MG_VDEM(g,v,d,e,m);
+  for (int i = 0; i < d[a]; i++)
+    if (i != b) 
+      if (bridge_helper(g, a, e[v[c] + i])) return 0;
+  return 1;
 }
 
 
@@ -490,69 +490,119 @@ search_mgraph(mgraph *g)
 ** reductions
 #+name: reductions
 #+begin_src c
-edge select_edge(mgraph *g) {
-  int n = g->n; int m = g->m;
-  for (int i = 0; i < n; i++)
-    {
-      set *row = GRAPHROW(g->g, i, g->m);
-      for (int j = 0; j < m; j++)
-        {
-          int fb = FIRSTBIT(row[j]);
-          if (fb != WORDSIZE)
-            return (edge){ .u = i, .v = fb + j*m };
-        }
-    }
+
+boolean
+edge_is_loop(mgraph *g, edge e)
+{
+  if (e.u == e.v) return TRUE; //assert(e.virt == 1)
+  return FALSE;
+}
+
+boolean
+edge_is_bridge(mgraph *g, edge e)
+{
+  if (e.virt >= 0) return FALSE;
+  return is_bridge(g, e.u, e.v);
+}
+
+edge select_edge(mgraph *g) 
+{
+  MG_VDEM(g, v, d, e, m);
+  for (int i = 0; i < g->g->nv; i++)
+    if (!m[i] && (d[i] > 0))
+      return to_edge(i, e[v[i]])
 
   fprintf(stderr, "select_edge called on empty graph\n");
   return (edge){ .u = -1, .v = -1 };
 }
 
 mgraph *
-contract_edge(mgraph *g_in, edge e)
+delete_arc(mgraph *g, int u, int v)
 {
-  int n = g_in->n; int m = g_in->m;
-/*
-  for (int i = 0; i < n; i++)
+  MG_VDEM(g, v, d, e, m);
+  int delete_flag = 0;
+  for (int i = 0; i < d[e.a]; i++)
     {
-      set *row = GRAPHROW(g, i, m);
-      for (int j = 0; j < m; j++)
-        {
-          int fb = FIRSTBIT(row[j]);
-          if (fb != WORDSIZE)
-            return (edge){ .u = i, .v = fb + j*m };
-        }
+      if (e[v[e.a]+i] == e.b) delete_flag = 1;
+      if (delete_flag && i != d[e.a]) 
+        e[v[e.b]+i] = e[v[e.a]+i+1];
     }
-*/
-
-  mgraph *g_out = new_mgraph(n, m);
-  graph *g = g_out->g;
-
-
-  memcpy((void *)g,(void *)g_in->g, m*(size_t)n*sizeof(setword));
-
-  int u = e.u; int v = e.v;
-  DELELEMENT(GRAPHROW(g,u,m),v);
-  DELELEMENT(GRAPHROW(g,v,m),u);
-
-  return g_out;
+  d[e.a]--; d[e.b]--;
 }
 
 mgraph *
-delete_edge(mgraph *g_in, edge e) // only handles simple edges
+delete_edge(mgraph *g, edge e)
 {
-  int n = g_in->n; int m = g_in->m;
+  if (e.a == e.a)
+    {
+      delete_arc(g, e.a, e.virt); delete_arc(g, e.virt, e.a);
+      return g;
+    }
+  if (e.virt >= 0)
+    {
+      delete_arc(g, e.a, e.virt); delete_arc(g, e.virt, e.a);
+      delete_arc(g, e.b, e.virt); delete_arc(g, e.virt, e.b);
+      return g;
+    }
 
-  mgraph *g = new_mgraph(n, m);
-  graph *ng = g->g;
+  delete_arc(g, e.a, e.b); delete_arc(g, e.b, e.a);
+}
 
-  memcpy((void *)ng,(void *)g_in->g, m*(size_t)n*sizeof(setword));
+void
+neighbor_intersection(mgraph *g, e);
+{
+  
+}
 
-  int u = e.u; int v = e.v;
-  DELELEMENT(GRAPHROW(ng,u,m),v);
-  DELELEMENT(GRAPHROW(ng,v,m),u);
+mgraph *
+contract_edge(mgraph *g_in, edge e)
+{ // assume no loops
+  MG_VDEM(gi, vi, di, ei, mi);
 
+  new_virt_verts = 0;
+  for (int i = 0; i < di[e.a]; i++)
+    for (int j = 0; j < di[e.b]; j++)
+      if (ei[vi[e.a]+i] == ei[vi[e.b]+j]) new_virt_verts++;
+
+  mgraph *g = new_mgraph_from_mgraph(g_in,
+                                     g_in->g->nv + new_virt_verts,
+                                     g_in->g->nde + di[e.a] + di[e.b]);
+  free_mgraph(g_in);
+
+  MG_VDEM(g, v, d, e, m);
+
+  for (int j = 0; j < d[e.b]; j++)
+    {
+      if (m[j])
+        {
+        }
+      else
+        {
+          switch(is_adjacent(e[v[e.b]+j], e.a))
+            {
+            case SIMPLE_ADJ:
+              break;
+            case MULTI_ADJ:
+              break;
+            case NOT_ADJ:
+              break;
+            }
+        }
+      for (int i = 0; i < d[e.a]; i++)
+        if (ei[vi[e.a]+i] == ei[vi[e.b]+j]) new_virt_verts++;
+        if (!nbrs[e[v[e.b]+i]])
+          {
+
+        }
+      if (g->g->e[g->g->v[e.u]+i] == e.v) delete_flag = 1;
+      if (delete_flag && i != g->g->d[e.u]) g->g->e[g->g->v[e.u]+i] = g->g->e[g->g->v[e.u]+i+1];
+    }
+
+  g->g->d[e.u]--;
+  g->g->d[e.v]--;
   return g;
 }
+
 poly *
 reduce_components(mgraph *g, mgraph_info *info)
 {
@@ -612,6 +662,7 @@ tutte(mgraph *g)
   //else
 
   poly *p;
+  /*
   mgraph_info *info = search_mgraph(g);
 
   if      (info->props & NOT_CONNECTED) p = reduce_components(g, info);
@@ -623,7 +674,38 @@ tutte(mgraph *g)
 
   // cache[hashgraph(g)] = p
   free_mgraph_info(info);
-  free_mgraph(g);
+  ,*/
+  if (g->g->nde == 0) 
+    {
+      p = new_poly(0,0);
+      ,*poly_coeff(p, 0, 0) = 1;
+      free_mgraph(g);
+    }
+  else
+    {
+      edge e = select_edge(g);
+      if (edge_is_loop(g, e))
+        {
+          p = tutte(delete_edge(g, e));
+          poly *y = new_poly(1,0);
+          ,*poly_coeff(y, 0, 0) = 0; *poly_coeff(y, 1, 0) = 1;
+          p = poly_mult(p, y);
+        }
+      else if (edge_is_bridge(g, e))
+        {
+          p = tutte(contract_edge(g, e));
+          poly *x = new_poly(1,0);
+          ,*poly_coeff(x, 0, 0) = 0; *poly_coeff(x, 1, 0) = 1;
+          p = poly_mult(p, x);
+        }
+      else {
+        mgraph *gc = copy_mg(g)
+        poly *pd = tutte(delete_edge(g, e));
+        poly *pc = tutte(contract_edge(gc, e));
+        p = poly_add(pc, pd);
+      }
+    }
+
   return p;
 }
 #+end_src
@@ -674,20 +756,13 @@ main(int argc, char *argv[])
   fin = opengraphfile(infile, &codetype, 0, position);
   if (fin == NULL) exit(1);
 
-  graph *g = readgg(fin, NULL, 0, &m, &n, &digraph);
-  if ((codetype&DIGRAPH6)) {fprintf(stderr,"I don't support digraphs");exit(1);}
+  sparsegraph *sg = read_sg(fin, NULL);
+  n = sg->nv; m = SETWORDSNEEDED(n);
+  nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
   print("n = %d, m = %d\n", n, m);
-  nauty_check(64,m,n,26040);
-  gtools_check(64,m,n,26040);
+  put_sg(stdout, sg, FALSE, 80);
 
-  mgraph *mg = (mgraph *)calloc(1, sizeof(mgraph));
-  mg->g = g;
-  mg->n = n;
-  mg->m = m;
-  DYNALLSTAT(int,lab,lab_sz);
-  DYNALLOC1(int,lab,lab_sz,n,"malloc");
-  mg->l = lab;
-
+  mgraph *mg = new_mgraph_from_graph(sg)
   poly *p = tutte(mg);
 
   if (outfile == NULL)
@@ -698,6 +773,7 @@ main(int argc, char *argv[])
   else fout = stdout;
 
   print_poly(fout, p);
+  free_poly(p);
 
   return 0;
 }
