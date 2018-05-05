@@ -283,6 +283,22 @@ mm = ((sparsegraph*)(mgp))->mult; \
 } while(0)
 
 int verbose = 0;
+
+#define SAFE_ALLOC
+#ifdef SAFE_ALLOC
+#define alloc(...) safe_alloc(__VA_ARGS__)
+void *
+safe_alloc(size_t n)
+{
+  void *p = malloc(n);
+  if (p == NULL) {fprintf(stderr, "error in malloc"); exit(1);}
+  return p;
+}
+#else
+#define alloc(...) malloc(__VA_ARGS__)
+#endif
+
+#define increase_ratio 1.5
 #+end_src
 
 ** graph data structure
@@ -290,36 +306,49 @@ int verbose = 0;
 #+begin_src c
 typedef struct mgraph
 { // an undirected multigraph
-  size_t *v;   /* Array of indexes into e[*] */
   int *d;      /* Array with degree of each vertex */
   int *e;      /* Array to hold lists of neighbours */
   int *mult; // multiplicity of "virtual mulitedge" vertex, 0 if normal vertex
   int *free; // indices of disconnected vertices
   int nv;      /* Number of vertices */
   size_t nde;  /* 2 * Number of edges */
+  int nfree; // number of free vertices
   size_t vlen,dlen,elen,multlen,freelen;  /* Sizes of arrays in units of type */
 } mgraph;
-
-typedef struct edge
-{
-  int a;
-  int b;
-  int virt;
-} edge;
 
 mgraph *
 new_mgraph(int nv, int nde)
 {
+  int nvt = nv*increase_ratio
   mgraph *g = (mgraph *)alloc(sizeof(mgraph));
-  g->v = (int *)alloc(nv * sizeof(int));
-  g->mult = (int *)calloc(sg->nv, sizeof(int));
+  g->nv = nv;
+  g->nde = nde;
+  g->nfree = nvt - nv;
+  g->dlen = nvt;
+  g->elen = nvt*nvt;
+  g->multilen = nvt;
+  g->freelen = nvt;
+  g->d = (int *)alloc(sg->dlen * sizeof(int));
+  g->e = (int *)alloc(sg->elen * sizeof(int));
+  g->mult = (int *)alloc(sg->multlen, sizeof(int));
+  g->free = (int *)alloc(sg->freelen, sizeof(int));
   return g;
 }
+
+#define nbr(g, u, i) g->e[i + u * g->dlen]
 
 mgraph *
 sparsegraph_to_mgraph(sparsegraph *sg)
 {
-  mgraph *g = (mgraph *)malloc(sizeof(mgraph));
+  mgraph *g = new_mgraph(sg->nv, sg->nde);
+  for (int i = 0; i < sg->nv; i++)
+    {
+      g->d[i] = sg->d[i];
+      for (int j = 0; j < sg->d[i]; j++)
+        nbr(g,i,j) = sg->e[v[]]
+
+    }
+  
   g->g = sg;
   g->mult = (int *)calloc(sg->nv, sizeof(int));
   return g;
@@ -346,6 +375,14 @@ free_mgraph(mgraph *g)
   SG_FREE(g->g);
   free(g);
 }
+
+typedef struct edge
+{
+  int a;
+  int b;
+  int virt;
+} edge;
+
 
 edge
 to_edge(mgraph *g, int a, int b)
