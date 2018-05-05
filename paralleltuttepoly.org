@@ -290,8 +290,14 @@ int verbose = 0;
 #+begin_src c
 typedef struct mgraph
 { // an undirected multigraph
-  sparsegraph *g;
+  size_t *v;   /* Array of indexes into e[*] */
+  int *d;      /* Array with degree of each vertex */
+  int *e;      /* Array to hold lists of neighbours */
   int *mult; // multiplicity of "virtual mulitedge" vertex, 0 if normal vertex
+  int *free; // indices of disconnected vertices
+  int nv;      /* Number of vertices */
+  size_t nde;  /* 2 * Number of edges */
+  size_t vlen,dlen,elen,multlen,freelen;  /* Sizes of arrays in units of type */
 } mgraph;
 
 typedef struct edge
@@ -304,17 +310,14 @@ typedef struct edge
 mgraph *
 new_mgraph(int nv, int nde)
 {
-  SG_DECL(sg);
-  SG_ALLOC(sg, nv, nde, "malloc sg");
-
-  mgraph *g = (mgraph *)malloc(sizeof(mgraph));
-  g->g = sg;
+  mgraph *g = (mgraph *)alloc(sizeof(mgraph));
+  g->v = (int *)alloc(nv * sizeof(int));
   g->mult = (int *)calloc(sg->nv, sizeof(int));
   return g;
 }
 
 mgraph *
-new_mgraph_from_graph(sparsegraph *sg)
+sparsegraph_to_mgraph(sparsegraph *sg)
 {
   mgraph *g = (mgraph *)malloc(sizeof(mgraph));
   g->g = sg;
@@ -555,51 +558,45 @@ neighbor_intersection(mgraph *g, e);
 }
 
 mgraph *
-contract_edge(mgraph *g_in, edge e)
+contract_edge(mgraph *g_in, edge ab)
 { // assume no loops
   MG_VDEM(gi, vi, di, ei, mi);
 
   new_virt_verts = 0;
-  for (int i = 0; i < di[e.a]; i++)
-    for (int j = 0; j < di[e.b]; j++)
-      if (ei[vi[e.a]+i] == ei[vi[e.b]+j]) new_virt_verts++;
+  for (int i = 0; i < di[ab.a]; i++)
+    for (int j = 0; j < di[ab.b]; j++)
+      if (ei[vi[ab.a]+i] == ei[vi[ab.b]+j]) new_virt_verts++;
 
   mgraph *g = new_mgraph_from_mgraph(g_in,
                                      g_in->g->nv + new_virt_verts,
-                                     g_in->g->nde + di[e.a] + di[e.b]);
+                                     g_in->g->nde + di[ab.a] + di[ab.b]);
+  size_t va_new = g_in->elen;
   free_mgraph(g_in);
 
   MG_VDEM(g, v, d, e, m);
 
-  for (int j = 0; j < d[e.b]; j++)
+  for (int i = 0; i < d[ab.a]; i++) e[va_new+i] = e[v[ab.a]+i];
+  v[ab.a] = va_new;
+
+  for (int j = 0; j < d[ab.b]; j++)
     {
-      if (m[j])
+      edge aj;
+      edge bj;
+      delete_edge(g, bj);
+      add_edge(g, aj);
+/*
+      if (is_triangle(e, j, &aj, &bj));
         {
+          delete_edge(g, bj);
+          add_edge(g, aj);
         }
       else
         {
-          switch(is_adjacent(e[v[e.b]+j], e.a))
-            {
-            case SIMPLE_ADJ:
-              break;
-            case MULTI_ADJ:
-              break;
-            case NOT_ADJ:
-              break;
-            }
+          e[v[ab.a]+d[ab.a]] = e[v[ab.b]+j];
+          d[ab.a]++;
         }
-      for (int i = 0; i < d[e.a]; i++)
-        if (ei[vi[e.a]+i] == ei[vi[e.b]+j]) new_virt_verts++;
-        if (!nbrs[e[v[e.b]+i]])
-          {
-
-        }
-      if (g->g->e[g->g->v[e.u]+i] == e.v) delete_flag = 1;
-      if (delete_flag && i != g->g->d[e.u]) g->g->e[g->g->v[e.u]+i] = g->g->e[g->g->v[e.u]+i+1];
+*/
     }
-
-  g->g->d[e.u]--;
-  g->g->d[e.v]--;
   return g;
 }
 
@@ -754,15 +751,15 @@ main(int argc, char *argv[])
   if (optind == (argc-1)) infile = argv[optind];
 
   fin = opengraphfile(infile, &codetype, 0, position);
-  if (fin == NULL) exit(1);
-
+  if (fin == NULL)
+    {fprintf(stderr, "error opening file", USAGE); exit(1);}
   sparsegraph *sg = read_sg(fin, NULL);
   n = sg->nv; m = SETWORDSNEEDED(n);
   nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
   print("n = %d, m = %d\n", n, m);
   put_sg(stdout, sg, FALSE, 80);
 
-  mgraph *mg = new_mgraph_from_graph(sg)
+  mgraph *mg = sparsegraph_to_mgraph(sg)
   poly *p = tutte(mg);
 
   if (outfile == NULL)
