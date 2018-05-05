@@ -1,0 +1,6 @@
+# Ignore everything
+*
+# except this literate org file
+!paralleltuttepoly.org
+!.gitignore
+!tutte.c
