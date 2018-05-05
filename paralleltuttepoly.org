@@ -207,26 +207,32 @@ INITSEED: seed=416931912
 
 ** Makefile
 #+begin_src makefile :tangle Makefile
-# nauty/nauty.a:
-# 	$(MAKE) -C nauty nauty.a
-# tutte: tutte.c nauty/nauty.h nauty/nauty.a
-# 	gcc -o tutte tutte.c nauty/nauty.a -Inauty
+nauty/nauty.a:
+	$(MAKE) -C nauty nauty.a
 
-tutte: tutte.c nauty/nausparse.h nauty/nausparse.c
-	gcc -o tutte tutte.c nauty/nausparse.c -Inauty
+tutte: nauty/nauty.h nauty/nauty.a tutte.c
+	gcc -std=gnu99 -g -o tutte tutte.c nauty/nauty.a -Inauty
+
+# tutte: tutte.c nauty/nausparse.h nauty/nausparse.c
+# 	gcc -o tutte tutte.c nauty/nausparse.c -Inauty
 
 execute: tutte
-	./tutte test.g6
+	./tutte graphs/edge10.g6
 
 clean:
 	$(MAKE) -C nauty clean
 	rm -f tutte *.o
+
+sync:
+#	rsync -azP --no-perms ~/class/parallel/asst4-s18 latedays:
+	rsync -azP --no-perms ~/class/parallel/project/paralleltuttepoly andrew:
+	rsync -azP --no-perms ~/class/parallel/project/nauty26r10 andrew:
 #+end_src
 
 ** tests
 #+begin_src bash :results raw drawer
-gsed -e 's/,/\n/g' -e 's/--/:/g' -e '1i\n=10 g' -e '$a\.' edge10 | nauty/dretog > test.g6
-cat test.g6
+gsed -e 's/,/\n/g' -e 's/--/:/g' -e '1i\n=10 g' -e '$a\.\n' graphs/edge10 | nauty/dretog > graphs/edge10.g6
+cat graphs/edge10.g6
 #gsed -e 's/,/\n/g' -e 's/--/:/g' -e '1i\n=10 g' -e '$a\.\nt' edge10 | nauty/dreadnaut
 #+end_src
 
@@ -267,38 +273,12 @@ I|eMID@WG
 
 #define HASH_KEY 1
 
-#define print(...) if (verbose) printf(__VA_ARGS__)
-
-#define SWAP(x, y, T) do { T SWAP = x; x = y; y = SWAP; } while (0)
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
-#define NOT_CONNECTED 0x00
-
-#define MG_VDEM(mgp,vv,dd,ee,mm) do { \
-vv = ((sparsegraph*)(mgp))->g->v; \
-dd = ((sparsegraph*)(mgp))->g->d; \
-ee = ((sparsegraph*)(mgp))->g->e; \
-mm = ((sparsegraph*)(mgp))->mult; \
-} while(0)
-
 int verbose = 0;
+#define print(...) if (verbose) printf(__VA_ARGS__)
 
-#define SAFE_ALLOC
-#ifdef SAFE_ALLOC
-#define alloc(...) safe_alloc(__VA_ARGS__)
-void *
-safe_alloc(size_t n)
-{
-  void *p = malloc(n);
-  if (p == NULL) {fprintf(stderr, "error in malloc"); exit(1);}
-  return p;
-}
-#else
-#define alloc(...) malloc(__VA_ARGS__)
-#endif
-
-#define increase_ratio 1.5
 #+end_src
 
 ** graph data structure
@@ -306,100 +286,110 @@ safe_alloc(size_t n)
 #+begin_src c
 typedef struct mgraph
 { // an undirected multigraph
-  int *d;      /* Array with degree of each vertex */
-  int *e;      /* Array to hold lists of neighbours */
-  int *mult; // multiplicity of "virtual mulitedge" vertex, 0 if normal vertex
-  int *free; // indices of disconnected vertices
-  int nv;      /* Number of vertices */
-  size_t nde;  /* 2 * Number of edges */
-  int nfree; // number of free vertices
-  size_t vlen,dlen,elen,multlen,freelen;  /* Sizes of arrays in units of type */
+  int *g;
+  int n;
 } mgraph;
 
-mgraph *
-new_mgraph(int nv, int nde)
+typedef struct medge
 {
-  int nvt = nv*increase_ratio
-  mgraph *g = (mgraph *)alloc(sizeof(mgraph));
-  g->nv = nv;
-  g->nde = nde;
-  g->nfree = nvt - nv;
-  g->dlen = nvt;
-  g->elen = nvt*nvt;
-  g->multilen = nvt;
-  g->freelen = nvt;
-  g->d = (int *)alloc(sg->dlen * sizeof(int));
-  g->e = (int *)alloc(sg->elen * sizeof(int));
-  g->mult = (int *)alloc(sg->multlen, sizeof(int));
-  g->free = (int *)alloc(sg->freelen, sizeof(int));
-  return g;
+  int i;
+  int j;
+  int m; //multiplicity
+} edge;
+
+#define MG_IDX(mg,i,j) mg->g[j + i*mg->n]
+
+extern int mg_get_edge_mult(mgraph *mg, int i, int j);
+extern void mg_add_medge(mgraph *mg, edge e);
+extern void mg_rem_medge(mgraph *mg, edge e);
+extern void mg_contract_edge(mgraph *mg, edge e);
+
+inline int mg_get_edge_mult(mgraph *mg, int i, int j)
+{
+  return MG_IDX(mg,i,j);
 }
-
-#define nbr(g, u, i) g->e[i + u * g->dlen]
-
-mgraph *
-sparsegraph_to_mgraph(sparsegraph *sg)
+inline void mg_add_medge(mgraph *mg, edge e)
 {
-  mgraph *g = new_mgraph(sg->nv, sg->nde);
-  for (int i = 0; i < sg->nv; i++)
+  MG_IDX(mg,e.i,e.j) += e.m;
+  MG_IDX(mg,e.j,e.i) += e.m;
+}
+inline void mg_rem_medge(mgraph *mg, edge e)
+{
+  MG_IDX(mg,e.i,e.j) -= e.m;
+  MG_IDX(mg,e.j,e.i) -= e.m;
+}
+inline void mg_contract_edge(mgraph *mg, edge e)
+{
+  int m;
+  for (int j = 0; j < mg->n; j++)
+    if ((m = mg_get_edge_mult(mg,e.j,j)))
     {
-      g->d[i] = sg->d[i];
-      for (int j = 0; j < sg->d[i]; j++)
-        nbr(g,i,j) = sg->e[v[]]
-
+      mg_rem_medge(mg, (edge){.i = e.i, .j = j, .m = m});
+      mg_add_medge(mg, (edge){.i = e.i, .i = j, .m = m});
     }
-  
-  g->g = sg;
-  g->mult = (int *)calloc(sg->nv, sizeof(int));
+}
+
+
+/*
+#define MG_ARC(mg,i,j) mg->g[j + i*mg->n]
+
+#define MG_GET_EMULT(mg,i,j) MG_ARC(mg,i,j)
+
+#define MG_ADD_MEDGE(mg,e) do { \
+    MG_ARC(mg, e.i, e.j) += e.m; \
+    MG_ARC(mg, e.j, e.i) += e.m; \
+  } while (0)
+
+#define MG_REM_MEDGE(mg,e) do { \
+    MG_ARC(mg, e.i, e.j) -= e.m; \
+    MG_ARC(mg, e.j, e.i) -= e.m; \
+  } while (0)
+*/
+
+mgraph *
+empty_mgraph(int n)
+{
+  mgraph *g = (mgraph *)malloc(sizeof(mgraph));
+  g->n = n;
+  g->g = (int *)calloc(n*n, sizeof(int));
+  return g;
+}
+mgraph *
+copy_mgraph(mgraph *g)
+{
+  mgraph *cg = empty_mgraph(g->n);
+  memcpy(cg->g, g->g, (g->n*g->n) * sizeof(int));
   return g;
 }
 
 mgraph *
-new_mgraph_from_mgraph(mgraph *og, int nv, int nde)
-{ //nv > g->g->nv and nde > g->g->nde
-  SG_DECL(sg);
-  SG_ALLOC(sg, nv, nde, "malloc sg");
+nautygraph_to_mgraph(graph *gg, int n, int m)
+{
+  mgraph *mg = empty_mgraph(n);
+  for (int i = 0; i < n; i++)
+    for (int j =0; j < n; j++)
+      if (ISELEMENT(GRAPHROW(gg,i,m),j)) MG_IDX(mg,i,j) = 1;
+  DYNFREE(gg,n);
+  return mg;
+}
 
-  mgraph *g = (mgraph *)malloc(sizeof(mgraph));
-  copy_sg(og->g, sg);
-  g->g = sg;
-  g->mult = (int *)malloc(nv * sizeof(int));
-  memcpy(g->mult, og->mult, nv * sizeof(int));
-  return g;
+graph *
+mgraph_to_nauttygraph(mgraph *mg)
+{
+  return NULL;
+}
+
+sparsegraph *
+mgraph_to_sparsegraph(mgraph *mg)
+{
+  return NULL;
 }
 
 void
 free_mgraph(mgraph *g)
 {
-  free(g->mult);
-  SG_FREE(g->g);
+  free(g->g);
   free(g);
-}
-
-typedef struct edge
-{
-  int a;
-  int b;
-  int virt;
-} edge;
-
-
-edge
-to_edge(mgraph *g, int a, int b)
-{
-  MG_VDEM(g,v,d,e,m);
-  if (!(m[a]) && !(m[a])) return (edge){ .a = a, .b = b, .virt = -1};
-  if (!(m[a]))
-    {
-    int c = (e[v[b]] == a) ? e[v[a]+1] : e[v[b]];
-    return (edge){ .a = a, .b = c, .virt = b};
-    }
-  if (!(m[b]))
-    {
-    int c = (e[v[a]] == b) ? e[v[b]+1] : e[v[a]];
-    return (edge){ .a = c, .b = b, .virt = a};
-    }
-  fprintf(stderr, "invalid pair passed to_edge\n");
 }
 
 typedef struct mgraph_info
@@ -430,7 +420,7 @@ typedef struct poly
 } poly;
 
 poly *
-new_poly(x_deg, y_deg)
+new_poly(int x_deg, int y_deg)
 {
   poly *p = (poly *)calloc(1, sizeof(poly));
   p->c = (long *)calloc((x_deg+1)*(y_deg+1), sizeof(long));
@@ -503,148 +493,57 @@ poly_mult(poly *A, poly *B)
   }
 ,*/
 
-int
-bridge_helper(mgraph *g, int a, int c)
-{
-  MG_VDEM(g,v,d,e,m);
-  if (a == c) return 1;
-  else
-    for (int i = 0; i < d[c]; i++)
-      if bridge_helper(g, u, e[v[c] + i]) return 1;
-  return 0;
-}
-
-int
-is_bridge(mgraph *g, int a, int b)
-{
-  MG_VDEM(g,v,d,e,m);
-  for (int i = 0; i < d[a]; i++)
-    if (i != b) 
-      if (bridge_helper(g, a, e[v[c] + i])) return 0;
-  return 1;
-}
-
-
 #+end_src
 
 ** reductions
 #+name: reductions
 #+begin_src c
+edge select_edge(mgraph *g)
+{
+  int m;
+  for (int i = 0; i < g->n; i++)
+    for (int j = 0; j < g->n; j++)
+      if ((m = mg_get_edge_mult(g,i,j))) return (edge){.i = i, .j = j, .m = m};
+
+  fprintf(stderr, "select_edge called on empty graph\n");
+  return (edge){.i = -1, .j = -1, .m = -1};
+}
 
 boolean
 edge_is_loop(mgraph *g, edge e)
 {
-  if (e.u == e.v) return TRUE; //assert(e.virt == 1)
+  if (e.i == e.j) return TRUE;
   return FALSE;
 }
 
-boolean
+int
+bridge_helper(mgraph *g, int a, int c)
+{
+/*
+  if (a == c) return 1;
+  else
+    for (int i = 0; i < g->n; i++)
+      if (ARC(g,a,i) && bridge_helper(g, a, i)) return 1;
+,*/
+  return 0;
+}
+
+int
 edge_is_bridge(mgraph *g, edge e)
 {
-  if (e.virt >= 0) return FALSE;
-  return is_bridge(g, e.u, e.v);
-}
-
-edge select_edge(mgraph *g) 
-{
-  MG_VDEM(g, v, d, e, m);
-  for (int i = 0; i < g->g->nv; i++)
-    if (!m[i] && (d[i] > 0))
-      return to_edge(i, e[v[i]])
-
-  fprintf(stderr, "select_edge called on empty graph\n");
-  return (edge){ .u = -1, .v = -1 };
-}
-
-mgraph *
-delete_arc(mgraph *g, int u, int v)
-{
-  MG_VDEM(g, v, d, e, m);
-  int delete_flag = 0;
-  for (int i = 0; i < d[e.a]; i++)
-    {
-      if (e[v[e.a]+i] == e.b) delete_flag = 1;
-      if (delete_flag && i != d[e.a]) 
-        e[v[e.b]+i] = e[v[e.a]+i+1];
-    }
-  d[e.a]--; d[e.b]--;
-}
-
-mgraph *
-delete_edge(mgraph *g, edge e)
-{
-  if (e.a == e.a)
-    {
-      delete_arc(g, e.a, e.virt); delete_arc(g, e.virt, e.a);
-      return g;
-    }
-  if (e.virt >= 0)
-    {
-      delete_arc(g, e.a, e.virt); delete_arc(g, e.virt, e.a);
-      delete_arc(g, e.b, e.virt); delete_arc(g, e.virt, e.b);
-      return g;
-    }
-
-  delete_arc(g, e.a, e.b); delete_arc(g, e.b, e.a);
-}
-
-void
-neighbor_intersection(mgraph *g, e);
-{
-  
-}
-
-mgraph *
-contract_edge(mgraph *g_in, edge ab)
-{ // assume no loops
-  MG_VDEM(gi, vi, di, ei, mi);
-
-  new_virt_verts = 0;
-  for (int i = 0; i < di[ab.a]; i++)
-    for (int j = 0; j < di[ab.b]; j++)
-      if (ei[vi[ab.a]+i] == ei[vi[ab.b]+j]) new_virt_verts++;
-
-  mgraph *g = new_mgraph_from_mgraph(g_in,
-                                     g_in->g->nv + new_virt_verts,
-                                     g_in->g->nde + di[ab.a] + di[ab.b]);
-  size_t va_new = g_in->elen;
-  free_mgraph(g_in);
-
-  MG_VDEM(g, v, d, e, m);
-
-  for (int i = 0; i < d[ab.a]; i++) e[va_new+i] = e[v[ab.a]+i];
-  v[ab.a] = va_new;
-
-  for (int j = 0; j < d[ab.b]; j++)
-    {
-      edge aj;
-      edge bj;
-      delete_edge(g, bj);
-      add_edge(g, aj);
 /*
-      if (is_triangle(e, j, &aj, &bj));
-        {
-          delete_edge(g, bj);
-          add_edge(g, aj);
-        }
-      else
-        {
-          e[v[ab.a]+d[ab.a]] = e[v[ab.b]+j];
-          d[ab.a]++;
-        }
-*/
-    }
-  return g;
+  for (int i = 0; i < g->n; i++)
+    if (ARC(g,e.a,i) && (i != e.b))
+      if (bridge_helper(g, e.b, i)) return 0;
+,*/
+  return 1;
 }
 
+/*
 poly *
 reduce_components(mgraph *g, mgraph_info *info)
 {
-  // assert(info->comps_len > 1)
-  poly *p = tutte(info->comps[0]);
-  for (int i = 1; i < info->comps_len; i++)
-    p = poly_mult(p, tutte(info->comps[i]));
-  return p;
+  return NULL;
 }
 
 poly *
@@ -677,6 +576,7 @@ reduce_edge_heuristic(mgraph *g, mgraph_info *info)
   poly *pc = tutte(contract_edge(g, e));
   return poly_add(pc, pd);
 }
+,*/
 
 
 #+end_src
@@ -709,7 +609,9 @@ tutte(mgraph *g)
   // cache[hashgraph(g)] = p
   free_mgraph_info(info);
   ,*/
-  if (g->g->nde == 0) 
+
+  edge e = select_edge(g);
+  if (g->n == 0)
     {
       p = new_poly(0,0);
       ,*poly_coeff(p, 0, 0) = 1;
@@ -717,25 +619,28 @@ tutte(mgraph *g)
     }
   else
     {
-      edge e = select_edge(g);
       if (edge_is_loop(g, e))
         {
-          p = tutte(delete_edge(g, e));
-          poly *y = new_poly(1,0);
-          ,*poly_coeff(y, 0, 0) = 0; *poly_coeff(y, 1, 0) = 1;
+          mg_rem_medge(g, e);
+          p = tutte(g);
+          poly *y = new_poly(0,1);
+          ,*poly_coeff(y, 0, 0) = 0; *poly_coeff(y, 0, 1) = 1;
           p = poly_mult(p, y);
         }
       else if (edge_is_bridge(g, e))
         {
-          p = tutte(contract_edge(g, e));
+          mg_contract_edge(g, e);
+          p = tutte(g);
           poly *x = new_poly(1,0);
           ,*poly_coeff(x, 0, 0) = 0; *poly_coeff(x, 1, 0) = 1;
           p = poly_mult(p, x);
         }
       else {
-        mgraph *gc = copy_mg(g)
-        poly *pd = tutte(delete_edge(g, e));
-        poly *pc = tutte(contract_edge(gc, e));
+        mgraph *gc = copy_mgraph(g);
+        mg_rem_medge(g, e);
+        poly *pd = tutte(g);
+        mg_contract_edge(gc, e);
+        poly *pc = tutte(gc);
         p = poly_add(pc, pd);
       }
     }
@@ -789,14 +694,13 @@ main(int argc, char *argv[])
 
   fin = opengraphfile(infile, &codetype, 0, position);
   if (fin == NULL)
-    {fprintf(stderr, "error opening file", USAGE); exit(1);}
-  sparsegraph *sg = read_sg(fin, NULL);
-  n = sg->nv; m = SETWORDSNEEDED(n);
+    {fprintf(stderr, "error opening file"); exit(1);}
+  graph *gg = readgg(fin, NULL, 0, &m, &n, &digraph);
+  if (digraph) {fprintf(stderr, "digraphs not supported"); exit(1);}
   nauty_check(WORDSIZE,m,n,NAUTYVERSIONID);
   print("n = %d, m = %d\n", n, m);
-  put_sg(stdout, sg, FALSE, 80);
 
-  mgraph *mg = sparsegraph_to_mgraph(sg)
+  mgraph *mg = nautygraph_to_mgraph(gg,n,m);
   poly *p = tutte(mg);
 
   if (outfile == NULL)
