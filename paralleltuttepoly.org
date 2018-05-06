@@ -197,30 +197,6 @@ INITSEED: seed=416931912
 
 
 * Code
-** Makefile
-#+begin_src makefile :tangle Makefile
-nauty/nauty.a:
-	$(MAKE) -C nauty nauty.a
-
-tutte: nauty/nauty.h nauty/nauty.a tutte.c
-	gcc -std=gnu99 -g -o tutte tutte.c nauty/nauty.a -Inauty
-
-# tutte: tutte.c nauty/nausparse.h nauty/nausparse.c
-# 	gcc -o tutte tutte.c nauty/nausparse.c -Inauty
-
-execute: tutte
-	./tutte graphs/edge10.g6
-
-clean:
-	$(MAKE) -C nauty clean
-	rm -f tutte *.o
-
-sync:
-#	rsync -azP --no-perms ~/class/parallel/asst4-s18 latedays:
-	rsync -azP --no-perms ~/class/parallel/project/paralleltuttepoly andrew:
-	rsync -azP --no-perms ~/class/parallel/project/nauty26r10 andrew:
-#+end_src
-
 ** tests
 #+begin_src bash :results raw drawer
 gsed -e 's/,/\n/g' -e 's/--/:/g' -e '1i\n=10 g' -e '$a\.\n' graphs/edge10 | nauty/dretog > graphs/edge10.g6
@@ -233,7 +209,22 @@ cat graphs/edge10.g6
 I|eMID@WG
 :END:
 
-* local lisp variables                                             :noexport:
-;; Local Variables:
-;; eval: (add-hook 'after-save-hook (lambda ()(org-babel-tangle)) nil t)
-;; End:
+#+begin_src bash :dir /ssh:andrew:paralleltuttepoly :results raw drawer
+make clean
+make execute
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+make -C nauty clean
+make[1]: Entering directory `/afs/andrew.cmu.edu/usr4/akyle/nauty26r10'
+rm -f *.o config.log config.cache config.status nauty*.a
+rm -f dreadtest dreadtestL \
+	dreadtestW \
+	dreadtestS dreadtestS1 \
+        dreadtest4K dreadtest1 \
+	dreadtestL1 dreadtestW1
+make[1]: Leaving directory `/afs/andrew.cmu.edu/usr4/akyle/nauty26r10'
+rm -f tutte *.o
+:END:
+

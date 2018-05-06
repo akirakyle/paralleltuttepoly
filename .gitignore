@@ -3,4 +3,10 @@
 # except this literate org file
 !paralleltuttepoly.org
 !.gitignore
+!Makefile
 !tutte.c
+!tutte.h
+!mgraph.h
+!mgraph.c
+!poly.h
+!poly.c
