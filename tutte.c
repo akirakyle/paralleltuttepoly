@@ -1,72 +1,55 @@
 #include "tutte.h"
 
-edge select_edge(mgraph *g)
+medge select_edge(mgraph *g)
 {
   int m;
   for (int i = 0; i < g->n; i++)
     for (int j = 0; j < g->n; j++)
-      if ((m = mg_get_edge_mult(g,i,j))) return (edge){.a = i, .b = j, .m = m};
+      if ((m = mg_get_edge_mult(g,i,j))) return (medge){.a = i, .b = j, .m = m};
 
-  return (edge){.a = -1, .b = -1, .m = -1};
+  return (medge){.a = -1, .b = -1, .m = -1};
 }
 
-int
-bridge_helper(mgraph *g, int a, int c)
-{
-  if (a == c) return 1;
-  else
-    for (int i = 0; i < g->n; i++)
-      if (ARC(g,a,i) && bridge_helper(g, a, i)) return 1;
-  return 0;
-}
-
-int
-edge_is_bridge(mgraph *g, edge e)
-{
-  for (int i = 0; i < g->n; i++)
-    if (ARC(g,e.a,i) && (i != e.b))
-      if (bridge_helper(g, e.b, i)) return 0;
-  return 0;
-}
-
-/*
 poly *
-reduce_components(mgraph *g, mgraph_info *info)
+reduce_components(mgraph *g, dfs_data *info)
 {
   return NULL;
 }
 
 poly *
-reduce_trees(mgraph *g, mgraph_info *info)
+reduce_trees(mgraph *g, dfs_data *info)
 {
   return NULL;
 }
 
 poly *
-reduce_multiears(mgraph *g, mgraph_info *info)
+reduce_multiears(mgraph *g, dfs_data *info)
 {
   return NULL;
 }
 poly *
-reduce_loops(mgraph *g, mgraph_info *info)
+reduce_loops(mgraph *g, dfs_data *info)
 {
   return NULL;
 }
 poly *
-reduce_multiedges(mgraph *g, mgraph_info *info)
+reduce_multiedges(mgraph *g, dfs_data *info)
 {
   return NULL;
 }
 
 poly *
-reduce_edge_heuristic(mgraph *g, mgraph_info *info)
+reduce_edge_heuristic(mgraph *g, dfs_data *info)
 {
-  edge e = select_edge(g);
-  poly *pd = tutte(delete_edge(g, e));
-  poly *pc = tutte(contract_edge(g, e));
+  medge e = select_edge(g);
+  mgraph *gc = copy_mgraph(g);
+  mg_rem_medge(g, e);
+  poly *pd = tutte(g);
+
+  mg_contract_medge(gc, e);
+  poly *pc = tutte(gc);
   return poly_add(pc, pd);
 }
-*/
 
 poly *
 tutte(mgraph *g)
@@ -78,7 +61,6 @@ tutte(mgraph *g)
   //printf("%s->%ld\n\n", graph_strg, hashg);
   //else
 
-  poly *p;
   /*
     mgraph_info *info = search_mgraph(g);
 
@@ -93,61 +75,54 @@ tutte(mgraph *g)
     free_mgraph_info(info);
   */
 
-  //print_mgraph(stdout, g);
 
-  edge e = select_edge(g);
+  poly *p;
+
+  medge e = select_edge(g);
+
+  print_mgraph(stdout, g);
+  printf("selected : ");
+  print_medge(stdout, e);
+  printf("\n");
 
   if (e.a == -1)
     {
-      //printf("bc in\n");
+      printf("base case\n");
       p = new_poly(0,0);
       *poly_coeff(p, 0, 0) = 1;
       free_mgraph(g);
-      //printf("bc out\n");
     }
   else
     {
-      if (!IS_LOOP(e) && !edge_is_bridge(g, e))
+      if (!medge_is_loop(g, e) && !medge_is_bridge(g, e))
         {
-          //printf("recurse in\n");
+          printf("recursive\n");
           mgraph *gc = copy_mgraph(g);
           mg_rem_medge(g, e);
           poly *pd = tutte(g);
-          //printf("recurse mid 1\n");
-          //print_poly(stdout, pd);
-          mg_contract_edge(gc, e);
+          mg_contract_medge(gc, e);
           poly *pc = tutte(gc);
-          //printf("recurse mid 2\n");
-          //print_poly(stdout, pc);
           p = poly_add(pc, pd);
-          //printf("poly_add: ");
-          //print_poly(stdout, p);
-          //printf("recurse out\n");
         }
-      else if (IS_LOOP(e))
+      else if (medge_is_loop(g,e))
         {
-          //printf("loop in\n");
+          printf("loop\n");
           mg_rem_medge(g, e);
           p = tutte(g);
-          //printf("loop mid\n");
           poly *y = new_poly(0,1);
           *poly_coeff(y, 0, 0) = 0; *poly_coeff(y, 0, 1) = 1;
           p = poly_mult(p, y);
-          //print_poly(stdout, p);
-          //printf("loop out\n");
         }
       else {
-        //printf("bridge in\n");
-        mg_contract_edge(g, e);
+        printf("bridge\n");
+        mg_contract_medge(g, e);
         p = tutte(g);
-        //printf("bridge mid\n");
         poly *x = new_poly(1,0);
         *poly_coeff(x, 0, 0) = 0; *poly_coeff(x, 1, 0) = 1;
         p = poly_mult(p, x);
-        //print_poly(stdout, p);
-        //printf("bridge out\n");
       }
     }
 
+  print_poly(stdout, p);
   return p;
 }

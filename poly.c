@@ -26,23 +26,54 @@ poly_coeff(poly *A, int x, int y)
 }
 
 void
+print_poly_term(FILE *fout, poly *p, int x, int y, char *extra)
+{
+  if (*poly_coeff(p,x,y) == 0) return;
+  else if (x == 0 && y == 0)
+    fprintf(fout, "%ld%s", *poly_coeff(p, x, y), extra);
+  else if (x == 0 && y == 1)
+    fprintf(fout, "%ld*y%s", *poly_coeff(p, x, y), extra);
+  else if (x == 1 && y == 0)
+    fprintf(fout, "%ld*x%s", *poly_coeff(p, x, y), extra);
+  else if (x == 1 && y == 1)
+    fprintf(fout, "%ld*x*y%s", *poly_coeff(p, x, y), extra);
+  else if (x == 0)
+    fprintf(fout, "%ld*y^%d%s", *poly_coeff(p, x, y), y, extra);
+  else if (y == 0)
+    fprintf(fout, "%ld*x^%d%s", *poly_coeff(p, x, y), x, extra);
+  else if (x == 1)
+    fprintf(fout, "%ld*x*y^%d%s", *poly_coeff(p, x, y), y, extra);
+  else if (y == 1)
+    fprintf(fout, "%ld*x^%d*y%s", *poly_coeff(p, x, y), x, extra);
+  else
+    fprintf(fout, "%ld*x^%d*y^%d%s", *poly_coeff(p, x, y), x, y, extra);
+}
+
+void
 print_poly(FILE *fout, poly *p)
 {
+  fprintf(fout, "T = ");
   for (int x = 0; x <= p->x_deg; x++)
     for (int y = 0; y <= p->y_deg; y++)
       if (x != p->x_deg || y != p->y_deg)
-        fprintf(fout, "%ldx^%dy^%d + ", *poly_coeff(p, x, y), x, y);
-  fprintf(fout, "%ldx^%dy^%d\n",
-          *poly_coeff(p, p->x_deg, p->y_deg), p->x_deg, p->y_deg);
+        print_poly_term(fout, p, x, y, " + ");
+  print_poly_term(fout, p, p->x_deg, p->y_deg, " :\n");
 }
 
 poly *
 poly_add(poly *A, poly *B)
 {
   poly *C = new_poly(MAX(A->x_deg, B->x_deg), MAX(A->y_deg, B->y_deg));
-  for (int x = 0; x <= MIN(A->x_deg, B->x_deg); x++)
-    for (int y = 0; y <= MIN(A->y_deg, B->y_deg); y++)
-      *poly_coeff(C, x, y) = *poly_coeff(A, x, y) + *poly_coeff(B, x, y);
+  for (int x = 0; x <= C->x_deg; x++)
+    for (int y = 0; y <= C->y_deg; y++)
+      {
+        long a = 0; long b = 0;
+        if ((x <= A->x_deg) && (y <= A->y_deg))
+          a = *poly_coeff(A, x, y);
+        if ((x <= B->x_deg) && (y <= B->y_deg))
+          b = *poly_coeff(B, x, y);
+        *poly_coeff(C, x, y) = a + b;
+      }
   free_poly(A); free_poly(B);
   return C;
 }

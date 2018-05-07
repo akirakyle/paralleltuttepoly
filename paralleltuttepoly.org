@@ -197,34 +197,370 @@ INITSEED: seed=416931912
 
 
 * Code
+** setup
+#+begin_src bash :dir ~/class/parallel/project :results raw drawer
+rsync -azP --no-perms ~/class/parallel/project/nauty26r10 latedays:
+rsync -azP --no-perms ~/class/parallel/project/tuttepoly-v0.9.18 latedays:
+#+end_src
+
+#+begin_src bash :dir /ssh:latedays:nauty26r10 :results raw drawer
+./configure
+make
+#+end_src
+
+#+begin_src bash :dir /ssh:latedays:tuttepoly-v0.9.18 :results raw drawer
+./configure CXXFLAGS='-g -O2 -std=c++11'
+make
+#+end_src
+
 ** tests
+   :PROPERTIES:
+   :header-args: :dir /ssh:latedays:paralleltuttepoly :results raw drawer
+   :END:
+
 #+begin_src bash :results raw drawer
-gsed -e 's/,/\n/g' -e 's/--/:/g' -e '1i\n=10 g' -e '$a\.\n' graphs/edge10 | nauty/dretog > graphs/edge10.g6
-cat graphs/edge10.g6
-#gsed -e 's/,/\n/g' -e 's/--/:/g' -e '1i\n=10 g' -e '$a\.\nt' edge10 | nauty/dreadnaut
+for i in `seq 10 32`; do
+    sed -e 's/,/\n/g' -e 's/--/:/g' -e '1i\n='$i' g' -e '$a\.\nT' \
+        hprtutte/examples/edge$i | nauty/dreadnaut > graphs/hpr/edge$i.dre
+done
 #+end_src
 
 #+RESULTS:
 :RESULTS:
-I|eMID@WG
 :END:
 
-#+begin_src bash :dir /ssh:andrew:paralleltuttepoly :results raw drawer
-make clean
-make execute
+#+NAME: graph-files
+| c3e |
+
+#+name: graphdot
+#+begin_src bash :results verbatim :var fname=graph-files[0]
+nauty/geng 4 | sed -n 8p | nauty/showg -d > graphs/$fname.dre
+nauty/dretodot graphs/$fname.dre
+#+end_src
+
+#+RESULTS: graphdot
+:RESULTS:
+graph G
+{
+graph [center="true", size="10.00, 6.18", ratio="fill", ranksep="0.25", nodesep="0.40",
+       outputorder="edgesfirst", overlap="scale", layout="dot"];
+node  [shape="circle", width="0.50", height="0.50", fixedsize="true",
+       style="filled", color="black",
+       fontsize="13", fontname="Arial Narrow"];
+node  [color="black", fontcolor="black"]
+     0 [fontsize="21.66", fillcolor="#77BB33"]
+     1 [fontsize="21.66", fillcolor="#77BB33"]
+     2 [fontsize="21.66", fillcolor="#77BB33"]
+     3 [fontsize="21.66", fillcolor="#77BB33"]
+edge  [penwidth="0.8", color="black", weight="10"];
+0 -- 2;
+0 -- 3;
+1 -- 3;
+2 -- 3;
+}
+:END:
+
+#+begin_src bash :results silent :dir ~/class/parallel/project/paralleltuttepoly/graphs/viz :var graphdot=graphdot fname=graph-files[0]
+# echo $graphdot | dot2tex -f tikz > $fname.tex
+# pdflatex $fname.tex
+echo $graphdot | dot -Tpdf -o $fname.pdf
+open $fname.pdf
+#+end_src
+
+#+begin_src bash :results raw drawer :var fname=graph-files[0]
+nauty/dretog graphs/$fname.dre | nauty/showg -qe | \
+sed -e '2!d' -e 's/  /,/g' -e 's/ /--/g' > output/hprtutte.in
+cat output/hprtutte.in
+
+nauty/dretog graphs/$fname.dre > output/mytutte.in
+cat output/mytutte.in
 #+end_src
 
 #+RESULTS:
 :RESULTS:
-make -C nauty clean
-make[1]: Entering directory `/afs/andrew.cmu.edu/usr4/akyle/nauty26r10'
-rm -f *.o config.log config.cache config.status nauty*.a
-rm -f dreadtest dreadtestL \
-	dreadtestW \
-	dreadtestS dreadtestS1 \
-        dreadtest4K dreadtest1 \
-	dreadtestL1 dreadtestW1
-make[1]: Leaving directory `/afs/andrew.cmu.edu/usr4/akyle/nauty26r10'
-rm -f tutte *.o
+0--2,0--3,1--3,2--3
+CV
+:END:
+
+
+#+name: make
+#+begin_src bash :results raw drawer :var fname=graph-files[0]
+make
+#+end_src
+
+#+RESULTS: make
+:RESULTS:
+gcc -g -O3 -Wall -Wno-unused-variable -std=gnu99  -o tutte mgraph.c poly.c tutte.c findtutte.c nauty/nauty.a  -Inauty
+:END:
+
+#+RESULTS:
+:RESULTS:
+:END:
+
+#+begin_src bash :results raw drawer :var fname=graph-files[0]
+./tutte output/mytutte.in > output/mytutte/$fname.out
+cat output/mytutte/$fname.out
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+  0   0   1   1 
+  0   0   0   1 
+  1   0   0   1 
+  1   1   1   0 
+selected : 1(0, 2)
+num: 1, 4, 2, 3, 
+
+recursive
+  0   0   0   1 
+  0   0   0   1 
+  0   0   0   1 
+  1   1   1   0 
+selected : 1(0, 3)
+num: 1, 3, 4, 2, 
+
+recursive
+  0   0   0   0 
+  0   0   0   1 
+  0   0   0   1 
+  0   1   1   0 
+selected : 1(1, 3)
+num: 1, 2, 4, 3, 
+
+recursive
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   1 
+  0   0   1   0 
+selected : 1(2, 3)
+num: 1, 2, 3, 4, 
+
+bridge
+  0   0   0   0 
+  0   0   0   0 
+  0   0   1   0 
+  0   0   0   0 
+selected : 1(2, 2)
+loop
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : -1(-1, -1)
+base case
+T = 1 :
+T = 1*y :
+T = 1*y + 1*x + 1*x*y :
+  0   0   0   0 
+  0   1   1   0 
+  0   1   0   0 
+  0   0   0   0 
+selected : 1(1, 1)
+loop
+  0   0   0   0 
+  0   0   1   0 
+  0   1   0   0 
+  0   0   0   0 
+selected : 1(1, 2)
+num: 1, 2, 3, 4, 
+
+recursive
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : -1(-1, -1)
+base case
+T = 1 :
+  0   0   0   0 
+  0   1   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : 1(1, 1)
+loop
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : -1(-1, -1)
+base case
+T = 1 :
+T = 1*y :
+T = 1 + 1*y :
+T = 1*y^2 :
+T = 1*y + 1*y^2 + 1*x + 1*x*y +   1   1   1   0 
+  1   0   0   0 
+  1   0   0   0 
+  0   0   0   0 
+selected : 1(0, 0)
+loop
+  0   1   1   0 
+  1   0   0   0 
+  1   0   0   0 
+  0   0   0   0 
+selected : 1(0, 1)
+num: 1, 2, 3, 4, 
+
+bridge
+  1   0   1   0 
+  0   0   0   0 
+  1   0   0   0 
+  0   0   0   0 
+selected : 1(0, 0)
+loop
+  0   0   1   0 
+  0   0   0   0 
+  1   0   0   0 
+  0   0   0   0 
+selected : 1(0, 2)
+num: 1, 3, 2, 4, 
+
+recursive
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : -1(-1, -1)
+base case
+T = 1 :
+  1   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : 1(0, 0)
+loop
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : -1(-1, -1)
+base case
+T = 1 :
+T = 1*y :
+T = 1 + 1*y :
+T = 1*y^2 :
+T = 1*y^2 + 1*x + 1*x*y^2 :
+T = 1*x*y^3 :
+T = 1*y + 1*y^2 + 1*y^3 + 1*x + 1*x*y + 1*x*y^3 :
+  1   0   0   2 
+  0   0   0   1 
+  0   0   0   0 
+  2   1   0   0 
+selected : 1(0, 0)
+loop
+  0   0   0   2 
+  0   0   0   1 
+  0   0   0   0 
+  2   1   0   0 
+selected : 2(0, 3)
+num: 1, 3, 4, 2, 
+
+recursive
+  0   0   0   0 
+  0   0   0   1 
+  0   0   0   0 
+  0   1   0   0 
+selected : 1(1, 3)
+num: 1, 2, 4, 3, 
+
+recursive
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : -1(-1, -1)
+base case
+T = 1 :
+  0   0   0   0 
+  0   1   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : 1(1, 1)
+loop
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : -1(-1, -1)
+base case
+T = 1 :
+T = 1*y :
+T = 1 + 1*y :
+  2   1   0   0 
+  1   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : 2(0, 0)
+loop
+  0   1   0   0 
+  1   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : 1(0, 1)
+num: 1, 2, 3, 4, 
+
+recursive
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : -1(-1, -1)
+base case
+T = 1 :
+  1   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : 1(0, 0)
+loop
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : -1(-1, -1)
+base case
+T = 1 :
+T = 1*y :
+T = 1 + 1*y :
+T = 1*y^2 :
+T = 1 + 1*y + 1*y^2 :
+T = 1*y^3 :
+T = 1*y + 1*y^2 + 1*y^3 + 1*x + 1*x*y + 1*x*y^3 :
+T = 1*y + 1*y^2 + 1*y^3 + 1*x + 1*x*y + 1*x*y^3 :
+:END:
+
+#+begin_src bash :results raw drawer :var fname=graph-files[0]
+hprtutte/tutte/tutte output/hprtutte.in > output/hprtutte/$fname.out
+cat output/hprtutte/$fname.out
+#+end_src
+#+RESULTS:
+:RESULTS:
+G[1] := {0--2,0--3,1--3,2--3}
+TP[1] := 1*x*y + 1*x^2 + 1*x^3 :
+:END:
+
+
+#+begin_src bash :session :results raw drawer :var fname=graph-files[0]
+./polyDiff.py 10 output/hprtutte/$fname.out output/mytutte/$fname.out
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+regexp found multiple terms
+regexp found multiple terms
+regexp found multiple terms
+x^0*y^1 : 0 != 1
+x^1*y^0 : 0 != 1
+regexp found multiple terms
+regexp found multiple terms
+x^1*y^2 : 0 != 1
+x^2*y^2 : 0 != 1
+regexp found multiple terms
+regexp found multiple terms
+x^2*y^3 : 0 != 1
+regexp found multiple terms
+regexp found multiple terms
+regexp found multiple terms
+x^3*y^3 : 0 != 1
 :END:
 
