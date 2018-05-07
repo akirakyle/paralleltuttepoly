@@ -58,7 +58,6 @@ print_mgraph(FILE *fout, mgraph *mg)
         fprintf(fout, "%3d ",MG_IDX(mg,i,j));
       fprintf(fout, "\n");
     }
-
 }
 
 
@@ -121,11 +120,13 @@ return is_bridge;
 
 */
 
-dfs_data *
-new_dfs_data(int n)
+mgraph_data *
+new_mgraph_data(int n)
 {
-  dfs_data *dd = malloc(sizeof(dfs_data));
-  dd->num = calloc(n, sizeof(int)); //dfs number
+  mgraph_data *dd = malloc(sizeof(mgraph_data));
+  dd->dfs_tree = (int *)calloc(n*n, sizeof(int));
+  dd->num = malloc(n*sizeof(int));
+  for (int i = 0; i < n; i++) dd->num[i] = -1;
   dd->dfi = calloc(n, sizeof(int));
   dd->comps = calloc(n, sizeof(int));
   dd->visited = calloc(n, sizeof(int));
@@ -135,12 +136,14 @@ new_dfs_data(int n)
   dd->time  = 0;
   dd->ncomps = 0;
   dd->nchains = 0;
+  dd->is_tree = true;
   return dd;
 }
 
 void
-free_dfs_data(dfs_data *dd)
+free_mgraph_data(mgraph_data *dd)
 {
+  free(dd->dfs_tree);
   free(dd->num);
   free(dd->dfi);
   free(dd->comps);
@@ -150,89 +153,122 @@ free_dfs_data(dfs_data *dd)
 }
 
 void
-DFS(mgraph *g, dfs_data *dd, int v)
+print_mgraph_data(FILE *fout, mgraph_data *dd)
 {
-  //printf("dfs on %d\n", v);
-  //print_dfs_data(dd);
-  //printf("\n");
-
-  if (dd->num[v] != 0) return;
-  dd->num[v] = ++(dd->time);
-  dd->dfi[dd->time] = v;
-  dd->comps[v] = dd->ncomps;
-  for (int u = 0; u < g->n; u++) if (mg_get_edge_mult(g,v,u)) DFS(g, dd, u);
+  fprintf(fout, "dfs_tree: \n");
+  for (int i = 0; i < dd->n; i++)
+    {
+      for (int j =0; j < dd->n; j++)
+        fprintf(fout, "%3d ",DD_IDX(dd,i,j));
+      fprintf(fout, "\n");
+    }
+  fprintf(fout, "num: ");
+  for (int v = 0; v < dd->n; v++)
+    fprintf(fout, "%d, ", dd->num[v]);
+  fprintf(fout, "\n");
+  fprintf(fout, "dfi: ");
+  for (int v = 0; v < dd->n; v++)
+    fprintf(fout, "%d, ", dd->dfi[v]);
+  fprintf(fout, "\n");
+  fprintf(fout, "comps: ");
+  for (int v = 0; v < dd->n; v++)
+    fprintf(fout, "%d, ", dd->comps[v]);
+  fprintf(fout, "\n");
+  fprintf(fout, "visited: ");
+  for (int v = 0; v < dd->n; v++)
+    fprintf(fout, "%d, ", dd->visited[v]);
+  fprintf(fout, "\n");
+  fprintf(fout, "chains: ");
+  for (int v = 0; v < dd->n; v++)
+    fprintf(fout, "%d, ", dd->chains[v]);
+  fprintf(fout, "n = %d, ncomps = %d, nchains = %d, is_tree = %d",
+          dd->n, dd->ncomps, dd->nchains, dd->is_tree);
+  fprintf(fout, "\n\n");
 }
 
 void
-chain_decomp_helper(mgraph *g, dfs_data *dd, int v)
+DFS(mgraph *g, mgraph_data *dd, int v, int p)
 {
-  if (dd->visited[v] != 0) return;
-  dd->chains[v] = dd->nchains;
+  //printf("dfs on %d\n", v);
+  //print_mgraph_data(dd);
+  //printf("\n");
+
+  dd->comps[v] = dd->ncomps;
+  dd->dfi[dd->time] = v;
+  dd->num[v] = dd->time;
+  dd->time++;
   for (int u = 0; u < g->n; u++)
-    if (mg_get_edge_mult(g,v,u) && (dd->num[u] < dd->num[v])) // uv is backedge
-      chain_decomp_helper(g, dd, u);
+    if (mg_get_edge_mult(g,v,u))
+      {
+        if (dd->num[u] == UNVISITED)
+          {
+            DD_IDX(dd,u,v) = TREE_EDGE;
+            DFS(g, dd, u, v);
+          }
+        else if (dd->num[v] > dd->num[u] && u != p)
+          {
+            dd->is_tree = false;
+            DD_IDX(dd,u,v) = BACK_EDGE;
+          }
+      }
 }
 
-dfs_data *
+void
+chain_traverse(mgraph *g, mgraph_data *dd, int v)
+{
+  //printf("traverse: %d\n", v);
+  //if (dd->visited[v] != 0) return;
+  //print_mgraph_data(stdout,dd);
+  dd->visited[v] = 1;
+  dd->chains[v] = dd->nchains;
+  for (int u = 0; u < g->n; u++)
+    if (dd->visited[u] == 0 && DD_IDX(dd,v,u) == TREE_EDGE)
+      chain_traverse(g, dd, u);
+  //if (mg_get_edge_mult(g,v,u) && (dd->num[u] < dd->num[v])) // uv is backedge
+}
+
+mgraph_data *
 chain_decomp(mgraph *g)
 {
-  dfs_data *dd = new_dfs_data(g->n);
+  mgraph_data *dd = new_mgraph_data(g->n);
 
   for (int v = 0; v < g->n; v++)
-    {
-      if (dd->num[v] == 0) dd->ncomps++;
-      DFS(g, dd, v);
-    }
+    if (dd->num[v] == UNVISITED)
+      {
+        DFS(g, dd, v, v);
+        dd->ncomps++;
+      }
 
-  print_dfs_data(dd);
+  //print_mgraph_data(stdout, dd);
 
   for (int i = 0; i < g->n; i++)
     {
       int v = dd->dfi[i];
-      if (dd->visited[v] == 0) dd->nchains++;
-      chain_decomp_helper(g, dd, v);
+      for (int u = 0; u < g->n; u++)
+        if (dd->visited[u] == 0 && DD_IDX(dd,v,u) == BACK_EDGE)
+          {
+            dd->nchains++;
+            //printf("calling traverse: %d\n", u);
+            chain_traverse(g, dd, u);
+          }
     }
+
   return dd;
 }
 
 bool
 medge_is_bridge(mgraph *g, medge e)
 {
-  dfs_data *dd = chain_decomp(g);
+  if (mg_get_edge_mult(g, e.a, e.b) != 1) return false;
+  mgraph_data *dd = chain_decomp(g);
+
+  //print_mgraph_data(stdout, dd);
 
   bool is_bridge = false;
-  if (dd->chains[e.a] != dd->chains[e.b]) is_bridge = true;
-  free_dfs_data(dd);
+  if (dd->chains[e.a] != dd->chains[e.b] || dd->is_tree) is_bridge = true;
+  free_mgraph_data(dd);
   return is_bridge;
 }
-
-void
-print_dfs_data(dfs_data *dd)
-{
-  printf("num: ");
-  for (int v = 0; v < dd->n; v++)
-    printf("%d, ", dd->num[v]);
-  printf("\n");
-  /*
-  printf("low: ");
-  for (int v = 0; v < dd->n; v++)
-    printf("%d, ", dd->low[v]);
-  printf("\n");
-  printf("stack: ");
-  for (int v = 0; v < dd->n; v++)
-    printf("%d, ", dd->stack[v]);
-  printf("\n");
-  printf("on_stack: ");
-  for (int v = 0; v < dd->n; v++)
-    printf("%d, ", dd->on_stack[v]);
-  printf("\n");
-  printf("comps: ");
-  for (int v = 0; v < dd->n; v++)
-    printf("%d, ", dd->comps[v]);
-  */
-  printf("\n");
-}
-
 
 void
 print_medge(FILE *fout, medge e)

@@ -293,10 +293,6 @@ make
 gcc -g -O3 -Wall -Wno-unused-variable -std=gnu99  -o tutte mgraph.c poly.c tutte.c findtutte.c nauty/nauty.a  -Inauty
 :END:
 
-#+RESULTS:
-:RESULTS:
-:END:
-
 #+begin_src bash :results raw drawer :var fname=graph-files[0]
 ./tutte output/mytutte.in > output/mytutte/$fname.out
 cat output/mytutte/$fname.out
@@ -309,113 +305,25 @@ cat output/mytutte/$fname.out
   1   0   0   1 
   1   1   1   0 
 selected : 1(0, 2)
-num: 1, 4, 2, 3, 
-
 recursive
   0   0   0   1 
   0   0   0   1 
   0   0   0   1 
   1   1   1   0 
 selected : 1(0, 3)
-num: 1, 3, 4, 2, 
-
-recursive
-  0   0   0   0 
-  0   0   0   1 
-  0   0   0   1 
-  0   1   1   0 
-selected : 1(1, 3)
-num: 1, 2, 4, 3, 
-
-recursive
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   1 
-  0   0   1   0 
-selected : 1(2, 3)
-num: 1, 2, 3, 4, 
-
 bridge
-  0   0   0   0 
-  0   0   0   0 
-  0   0   1   0 
-  0   0   0   0 
-selected : 1(2, 2)
-loop
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : -1(-1, -1)
-base case
-T = 1 :
-T = 1*y :
-T = 1*y + 1*x + 1*x*y :
-  0   0   0   0 
-  0   1   1   0 
-  0   1   0   0 
-  0   0   0   0 
-selected : 1(1, 1)
-loop
-  0   0   0   0 
-  0   0   1   0 
-  0   1   0   0 
-  0   0   0   0 
-selected : 1(1, 2)
-num: 1, 2, 3, 4, 
-
-recursive
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : -1(-1, -1)
-base case
-T = 1 :
-  0   0   0   0 
-  0   1   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : 1(1, 1)
-loop
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : -1(-1, -1)
-base case
-T = 1 :
-T = 1*y :
-T = 1 + 1*y :
-T = 1*y^2 :
-T = 1*y + 1*y^2 + 1*x + 1*x*y +   1   1   1   0 
-  1   0   0   0 
-  1   0   0   0 
-  0   0   0   0 
-selected : 1(0, 0)
-loop
   0   1   1   0 
   1   0   0   0 
   1   0   0   0 
   0   0   0   0 
 selected : 1(0, 1)
-num: 1, 2, 3, 4, 
-
 bridge
-  1   0   1   0 
-  0   0   0   0 
-  1   0   0   0 
-  0   0   0   0 
-selected : 1(0, 0)
-loop
   0   0   1   0 
   0   0   0   0 
   1   0   0   0 
   0   0   0   0 
 selected : 1(0, 2)
-num: 1, 3, 2, 4, 
-
-recursive
+bridge
   0   0   0   0 
   0   0   0   0 
   0   0   0   0 
@@ -423,83 +331,48 @@ recursive
 selected : -1(-1, -1)
 base case
 T = 1 :
-  1   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : 1(0, 0)
-loop
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : -1(-1, -1)
-base case
-T = 1 :
-T = 1*y :
-T = 1 + 1*y :
-T = 1*y^2 :
-T = 1*y^2 + 1*x + 1*x*y^2 :
-T = 1*x*y^3 :
-T = 1*y + 1*y^2 + 1*y^3 + 1*x + 1*x*y + 1*x*y^3 :
-  1   0   0   2 
-  0   0   0   1 
-  0   0   0   0 
-  2   1   0   0 
-selected : 1(0, 0)
-loop
+T = 1*x :
+T = 1*x^2 :
+T = 1*x^3 :
   0   0   0   2 
   0   0   0   1 
   0   0   0   0 
   2   1   0   0 
-selected : 2(0, 3)
-num: 1, 3, 4, 2, 
-
+selected : 1(0, 3)
 recursive
-  0   0   0   0 
+  0   0   0   1 
   0   0   0   1 
   0   0   0   0 
+  1   1   0   0 
+selected : 1(0, 3)
+bridge
   0   1   0   0 
-selected : 1(1, 3)
-num: 1, 2, 4, 3, 
-
-recursive
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : -1(-1, -1)
-base case
-T = 1 :
-  0   0   0   0 
-  0   1   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : 1(1, 1)
-loop
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : -1(-1, -1)
-base case
-T = 1 :
-T = 1*y :
-T = 1 + 1*y :
-  2   1   0   0 
   1   0   0   0 
   0   0   0   0 
   0   0   0   0 
-selected : 2(0, 0)
+selected : 1(0, 1)
+bridge
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : -1(-1, -1)
+base case
+T = 1 :
+T = 1*x :
+T = 1*x^2 :
+  1   1   0   0 
+  1   0   0   0 
+  0   0   0   0 
+  0   0   0   0 
+selected : 1(0, 0)
 loop
   0   1   0   0 
   1   0   0   0 
   0   0   0   0 
   0   0   0   0 
 selected : 1(0, 1)
-num: 1, 2, 3, 4, 
-
-recursive
+bridge
   0   0   0   0 
   0   0   0   0 
   0   0   0   0 
@@ -507,26 +380,11 @@ recursive
 selected : -1(-1, -1)
 base case
 T = 1 :
-  1   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : 1(0, 0)
-loop
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : -1(-1, -1)
-base case
-T = 1 :
-T = 1*y :
-T = 1 + 1*y :
-T = 1*y^2 :
-T = 1 + 1*y + 1*y^2 :
-T = 1*y^3 :
-T = 1*y + 1*y^2 + 1*y^3 + 1*x + 1*x*y + 1*x*y^3 :
-T = 1*y + 1*y^2 + 1*y^3 + 1*x + 1*x*y + 1*x*y^3 :
+T = 1*x :
+T = 1*x*y :
+T = 1*x*y + 1*x^2 :
+T = 1*x*y + 1*x^2 + 1*x^3 :
+T = 1*x*y + 1*x^2 + 1*x^3 :
 :END:
 
 #+begin_src bash :results raw drawer :var fname=graph-files[0]

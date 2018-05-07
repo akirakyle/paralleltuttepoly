@@ -5,11 +5,12 @@ medge select_edge(mgraph *g)
   int m;
   for (int i = 0; i < g->n; i++)
     for (int j = 0; j < g->n; j++)
-      if ((m = mg_get_edge_mult(g,i,j))) return (medge){.a = i, .b = j, .m = m};
+      if ((m = mg_get_edge_mult(g,i,j))) return (medge){.a = i, .b = j, .m = 1};
 
   return (medge){.a = -1, .b = -1, .m = -1};
 }
 
+/*
 poly *
 reduce_components(mgraph *g, dfs_data *info)
 {
@@ -50,6 +51,7 @@ reduce_edge_heuristic(mgraph *g, dfs_data *info)
   poly *pc = tutte(gc);
   return poly_add(pc, pd);
 }
+*/
 
 poly *
 tutte(mgraph *g)

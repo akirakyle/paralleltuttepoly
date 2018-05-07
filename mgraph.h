@@ -15,6 +15,10 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
+#define BACK_EDGE -1
+#define TREE_EDGE 1
+#define UNVISITED -1
+
 typedef struct mgraph
 { // an undirected multigraph
   int *g;
@@ -28,10 +32,12 @@ typedef struct medge
   int m; //multiplicity
 } medge;
 
-typedef struct dfs_data
+typedef struct mgraph_data
 {
-  int *num;
+  int *dfs_tree;
+  //depth first index: dfi[i] gives vertex with dfs num (discovered) at time i
   int *dfi;
+  int *num;
   int *comps;
 
   int *visited;
@@ -41,7 +47,10 @@ typedef struct dfs_data
   int time;
   int ncomps;
   int nchains;
-} dfs_data;
+  bool is_tree;
+} mgraph_data;
+
+#define DD_IDX(dd,i,j) dd->dfs_tree[j + i*dd->n]
 
 #define MG_IDX(mg,i,j) mg->g[j + i*mg->n]
 #define IS_LOOP(e) (e.a == e.b)
@@ -73,6 +82,7 @@ static inline void mg_rem_medge(mgraph *mg, medge e)
 static inline void mg_contract_medge(mgraph *mg, medge e)
 {
   int m;
+  mg_rem_medge(mg, e);
   for (int j = 0; j < mg->n; j++)
     if ((m = mg_get_edge_mult(mg,e.b,j)))
     {
@@ -89,11 +99,12 @@ sparsegraph * mgraph_to_sparsegraph(mgraph *mg);
 void free_mgraph(mgraph *g);
 void print_mgraph(FILE *fout, mgraph *mg);
 
-dfs_data * new_dfs_data(int n);
-void free_dfs_data(dfs_data *dd);
-void DFS(mgraph *g, dfs_data *dd, int v);
-dfs_data * strong_comps(mgraph *g);
-void print_dfs_data(dfs_data *dd);
+mgraph_data * new_mgraph_data(int n);
+void free_mgraph_data(mgraph_data *dd);
+void print_dfs_data(mgraph_data *dd);
+
+//void DFS(mgraph *g, mgraph_data *dd, int v);
+//dfs_data * strong_comps(mgraph *g);
 
 static inline bool medge_is_loop(mgraph *g, medge e) {return IS_LOOP(e);}
 bool medge_is_bridge(mgraph *g, medge e);
