@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <stdbool.h>
 
+#include "cycletimer.h"
+
  /* MAXN=0 is defined by nauty.h, which implies dynamic allocation */
 #include "nauty.h"
 #include "gtools.h"

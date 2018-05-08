@@ -28,6 +28,11 @@ https://en.wikibooks.org/wiki/Fortran
 http://www.cs.rpi.edu/~szymansk/OOF90/bugs.html
 http://kitchingroup.cheme.cmu.edu/blog/2014/02/04/Literate-programming-example-with-Fortran-and-org-mode/
 
+** Chain decomposition
+https://en.wikipedia.org/wiki/Bridge_(graph_theory)#Bridge-Finding_with_Chain_Decompositions
+** Nauty
+http://mailman.anu.edu.au/pipermail/nauty/2004-February/000121.html
+http://mailman.anu.edu.au/pipermail/nauty/2004-April/000166.html
 
 * Project proposal
 ** Summary
@@ -213,12 +218,7 @@ make
 make
 #+end_src
 
-** tests
-   :PROPERTIES:
-   :header-args: :dir /ssh:latedays:paralleltuttepoly :results raw drawer
-   :END:
-
-#+begin_src bash :results raw drawer
+#+begin_src bash :dir /ssh:latedays:paralleltuttepoly :results raw drawer
 for i in `seq 10 32`; do
     sed -e 's/,/\n/g' -e 's/--/:/g' -e '1i\n='$i' g' -e '$a\.\nT' \
         hprtutte/examples/edge$i | nauty/dreadnaut > graphs/hpr/edge$i.dre
@@ -229,196 +229,118 @@ done
 :RESULTS:
 :END:
 
-#+NAME: graph-files
-| c3e |
+** onetest
+   :PROPERTIES:
+   :header-args: :dir /ssh:latedays:paralleltuttepoly :results raw drawer
+   :END:
+#   :header-args: :session latedays :results raw drawer
 
-#+name: graphdot
-#+begin_src bash :results verbatim :var fname=graph-files[0]
-nauty/geng 4 | sed -n 8p | nauty/showg -d > graphs/$fname.dre
-nauty/dretodot graphs/$fname.dre
-#+end_src
-
-#+RESULTS: graphdot
-:RESULTS:
-graph G
-{
-graph [center="true", size="10.00, 6.18", ratio="fill", ranksep="0.25", nodesep="0.40",
-       outputorder="edgesfirst", overlap="scale", layout="dot"];
-node  [shape="circle", width="0.50", height="0.50", fixedsize="true",
-       style="filled", color="black",
-       fontsize="13", fontname="Arial Narrow"];
-node  [color="black", fontcolor="black"]
-     0 [fontsize="21.66", fillcolor="#77BB33"]
-     1 [fontsize="21.66", fillcolor="#77BB33"]
-     2 [fontsize="21.66", fillcolor="#77BB33"]
-     3 [fontsize="21.66", fillcolor="#77BB33"]
-edge  [penwidth="0.8", color="black", weight="10"];
-0 -- 2;
-0 -- 3;
-1 -- 3;
-2 -- 3;
+#+name: test_fns
+#+begin_src bash :tangle regress.sh
+function mytutte {
+    ./tutte
 }
-:END:
-
-#+begin_src bash :results silent :dir ~/class/parallel/project/paralleltuttepoly/graphs/viz :var graphdot=graphdot fname=graph-files[0]
+function hprtutte() {
+    gtoHPRg | hprtutte/tutte/tutte --stdin
+}
+function gtoHPRg() {
+    nauty/showg -qe | sed -e '2!d' -e 's/  /,/g' -e 's/ /--/g'
+}
+function gengtest() {
+    nauty/geng -q $1 | sed $2'!d'
+}
+function dretest() {
+    nauty/dretog -q graphs/$1
+}
+function dotviz() {
+    nauty/showg -d | nauty/dretodot | dot -Tpdf -o output/viz/$1  2> /dev/null
 # echo $graphdot | dot2tex -f tikz > $fname.tex
 # pdflatex $fname.tex
-echo $graphdot | dot -Tpdf -o $fname.pdf
-open $fname.pdf
+}
+function multigengtest() {
+    mkdir -p output/geng
+    for i in `seq 2 $2`; do
+#        gengtest $1 $i | dotviz geng-$1-$i.pdf
+        gengtest $1 $i | mytutte > output/geng/mytutte-$1-$i.out
+        gengtest $1 $i | hprtutte > output/geng/hprtutte-$1-$i.out
+        ./polyDiff.py $1 output/geng/mytutte-$1-$i.out output/geng/hprtutte-$1-$i.out
+    done
+}
+function multidretest() {
+    mkdir -p output/$1
+    for i in $( ls graphs/$1 ); do
+#        dretest $1/$i | dotviz dre-$1-$i.pdf
+        dretest $1/$i | mytutte > output/$1/mytutte-$i.out
+        dretest $1/$i | hprtutte > output/$1/hprtutte-$i.out
+        n=$( cat graphs/$1/$i | grep -o -E 'n=[0-9]+' | sed 's/[^0-9]*//g' )
+        ./polyDiff.py $n output/'$1'/mytutte-$i.out output/'$1'/hprtutte-$i.out
+    done
+}
+function regress() {
+    multigengtest 2 2
+    multigengtest 3 4
+    multigengtest 4 11
+    multigengtest 5 34
+    multigengtest 6 156
+    #multigengtest 7 1044
+    #multidretest test
+}
 #+end_src
 
-#+begin_src bash :results raw drawer :var fname=graph-files[0]
-nauty/dretog graphs/$fname.dre | nauty/showg -qe | \
-sed -e '2!d' -e 's/  /,/g' -e 's/ /--/g' > output/hprtutte.in
-cat output/hprtutte.in
-
-nauty/dretog graphs/$fname.dre > output/mytutte.in
-cat output/mytutte.in
-#+end_src
-
-#+RESULTS:
+#+RESULTS: test_fns
 :RESULTS:
-0--2,0--3,1--3,2--3
-CV
 :END:
 
-
-#+name: make
-#+begin_src bash :results raw drawer :var fname=graph-files[0]
+#+begin_src bash :noweb yes
+{{{test_fns}}}
+function onetest() {
+    #dretest hpr/edge14.dre
+    gengtest 7 773
+}
 make
-#+end_src
-
-#+RESULTS: make
-:RESULTS:
-gcc -g -O3 -Wall -Wno-unused-variable -std=gnu99  -o tutte mgraph.c poly.c tutte.c findtutte.c nauty/nauty.a  -Inauty
-:END:
-
-#+begin_src bash :results raw drawer :var fname=graph-files[0]
-./tutte output/mytutte.in > output/mytutte/$fname.out
-cat output/mytutte/$fname.out
+onetest | dotviz graph.pdf
+onetest | mytutte > mytutte.out
+echo
+onetest | hprtutte > hprtutte.out
+./polyDiff.py 7 mytutte.out hprtutte.out
 #+end_src
 
 #+RESULTS:
 :RESULTS:
-  0   0   1   1 
-  0   0   0   1 
-  1   0   0   1 
-  1   1   1   0 
-selected : 1(0, 2)
-recursive
-  0   0   0   1 
-  0   0   0   1 
-  0   0   0   1 
-  1   1   1   0 
-selected : 1(0, 3)
-bridge
-  0   1   1   0 
-  1   0   0   0 
-  1   0   0   0 
-  0   0   0   0 
-selected : 1(0, 1)
-bridge
-  0   0   1   0 
-  0   0   0   0 
-  1   0   0   0 
-  0   0   0   0 
-selected : 1(0, 2)
-bridge
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : -1(-1, -1)
-base case
-T = 1 :
-T = 1*x :
-T = 1*x^2 :
-T = 1*x^3 :
-  0   0   0   2 
-  0   0   0   1 
-  0   0   0   0 
-  2   1   0   0 
-selected : 1(0, 3)
-recursive
-  0   0   0   1 
-  0   0   0   1 
-  0   0   0   0 
-  1   1   0   0 
-selected : 1(0, 3)
-bridge
-  0   1   0   0 
-  1   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : 1(0, 1)
-bridge
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : -1(-1, -1)
-base case
-T = 1 :
-T = 1*x :
-T = 1*x^2 :
-  1   1   0   0 
-  1   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : 1(0, 0)
-loop
-  0   1   0   0 
-  1   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : 1(0, 1)
-bridge
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-  0   0   0   0 
-selected : -1(-1, -1)
-base case
-T = 1 :
-T = 1*x :
-T = 1*x*y :
-T = 1*x*y + 1*x^2 :
-T = 1*x*y + 1*x^2 + 1*x^3 :
-T = 1*x*y + 1*x^2 + 1*x^3 :
-:END:
+make: Nothing to be done for `all'.
 
-#+begin_src bash :results raw drawer :var fname=graph-files[0]
-hprtutte/tutte/tutte output/hprtutte.in > output/hprtutte/$fname.out
-cat output/hprtutte/$fname.out
-#+end_src
-#+RESULTS:
-:RESULTS:
-G[1] := {0--2,0--3,1--3,2--3}
-TP[1] := 1*x*y + 1*x^2 + 1*x^3 :
+x^0*y^1 : 24 != 22
+x^0*y^2 : 78 != 68
+x^0*y^3 : 120 != 98
+x^0*y^4 : 126 != 95
+x^0*y^5 : 105 != 71
+x^0*y^6 : 73 != 42
+x^1*y^0 : 24 != 22
+x^1*y^1 : 122 != 107
+x^1*y^2 : 201 != 162
+x^1*y^3 : 196 != 141
+x^1*y^4 : 143 != 88
+x^1*y^5 : 84 != 40
+x^1*y^6 : 38 != 12
+x^2*y^0 : 68 != 61
+x^2*y^1 : 165 != 136
+x^2*y^2 : 153 != 109
+x^2*y^3 : 87 != 50
+x^2*y^4 : 36 != 13
+x^2*y^5 : 9 != 1
+x^2*y^6 : 1 != 0
+x^3*y^0 : 74 != 65
+x^3*y^1 : 87 != 66
+x^3*y^2 : 36 != 21
+x^3*y^3 : 7 != 2
+x^4*y^0 : 39 != 34
+x^4*y^1 : 16 != 11
+x^5*y^0 : 10 != 9
 :END:
 
 
-#+begin_src bash :session :results raw drawer :var fname=graph-files[0]
-./polyDiff.py 10 output/hprtutte/$fname.out output/mytutte/$fname.out
-#+end_src
-
-#+RESULTS:
-:RESULTS:
-regexp found multiple terms
-regexp found multiple terms
-regexp found multiple terms
-x^0*y^1 : 0 != 1
-x^1*y^0 : 0 != 1
-regexp found multiple terms
-regexp found multiple terms
-x^1*y^2 : 0 != 1
-x^2*y^2 : 0 != 1
-regexp found multiple terms
-regexp found multiple terms
-x^2*y^3 : 0 != 1
-regexp found multiple terms
-regexp found multiple terms
-regexp found multiple terms
-x^3*y^3 : 0 != 1
-:END:
-
+* local variables
+# Local Variables:
+# org-babel-noweb-wrap-start: "{{{"
+# org-babel-noweb-wrap-end: "}}}"
+# End:

@@ -15,10 +15,6 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
-#define BACK_EDGE -1
-#define TREE_EDGE 1
-#define UNVISITED -1
-
 typedef struct mgraph
 { // an undirected multigraph
   int *g;

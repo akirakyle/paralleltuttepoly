@@ -9,8 +9,8 @@ IFLAGS= -Inauty
 
 NAUTYLIB = nauty/nauty.a
 
-CFILES = mgraph.c poly.c tutte.c findtutte.c
-HFILES = mgraph.h poly.h tutte.h
+CFILES = cycletimer.c stack.c mgraph.c poly.c tutte.c findtutte.c
+HFILES = cycletimer.h stack.h mgraph.h poly.h tutte.h
 
 all: tutte # tutte-mpi
 
@@ -26,3 +26,4 @@ clean:
 
 sync:
 	rsync -azP --no-perms ~/class/parallel/project/paralleltuttepoly latedays:
+#	rsync -azP latedays:paralleltuttepoly/output ~/class/parallel/project/paralleltuttepoly

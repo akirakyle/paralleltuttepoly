@@ -82,14 +82,14 @@ tutte(mgraph *g)
 
   medge e = select_edge(g);
 
-  print_mgraph(stdout, g);
-  printf("selected : ");
-  print_medge(stdout, e);
-  printf("\n");
+  //print_mgraph(stdout, g);
+  //printf("selected : ");
+  //print_medge(stdout, e);
+  //printf("\n");
 
   if (e.a == -1)
     {
-      printf("base case\n");
+      //printf("base case\n");
       p = new_poly(0,0);
       *poly_coeff(p, 0, 0) = 1;
       free_mgraph(g);
@@ -98,7 +98,7 @@ tutte(mgraph *g)
     {
       if (!medge_is_loop(g, e) && !medge_is_bridge(g, e))
         {
-          printf("recursive\n");
+          //printf("recursive\n");
           mgraph *gc = copy_mgraph(g);
           mg_rem_medge(g, e);
           poly *pd = tutte(g);
@@ -108,7 +108,7 @@ tutte(mgraph *g)
         }
       else if (medge_is_loop(g,e))
         {
-          printf("loop\n");
+          //printf("loop\n");
           mg_rem_medge(g, e);
           p = tutte(g);
           poly *y = new_poly(0,1);
@@ -116,7 +116,7 @@ tutte(mgraph *g)
           p = poly_mult(p, y);
         }
       else {
-        printf("bridge\n");
+        //printf("bridge\n");
         mg_contract_medge(g, e);
         p = tutte(g);
         poly *x = new_poly(1,0);
@@ -125,6 +125,6 @@ tutte(mgraph *g)
       }
     }
 
-  print_poly(stdout, p);
+  //print_poly(stdout, p);
   return p;
 }

@@ -181,7 +181,7 @@ print_mgraph_data(FILE *fout, mgraph_data *dd)
   fprintf(fout, "chains: ");
   for (int v = 0; v < dd->n; v++)
     fprintf(fout, "%d, ", dd->chains[v]);
-  fprintf(fout, "n = %d, ncomps = %d, nchains = %d, is_tree = %d",
+  fprintf(fout, "\nn = %d, ncomps = %d, nchains = %d, is_tree = %d",
           dd->n, dd->ncomps, dd->nchains, dd->is_tree);
   fprintf(fout, "\n\n");
 }
@@ -200,15 +200,15 @@ DFS(mgraph *g, mgraph_data *dd, int v, int p)
   for (int u = 0; u < g->n; u++)
     if (mg_get_edge_mult(g,v,u))
       {
-        if (dd->num[u] == UNVISITED)
-          {
-            DD_IDX(dd,u,v) = TREE_EDGE;
+        if (dd->num[u] == -1)
+          { // (u,v) is directed tree edge
+            DD_IDX(dd,u,v) = 1;
             DFS(g, dd, u, v);
           }
         else if (dd->num[v] > dd->num[u] && u != p)
-          {
+          { // (u,v) is directed backedge
             dd->is_tree = false;
-            DD_IDX(dd,u,v) = BACK_EDGE;
+            DD_IDX(dd,u,v) = 1;
           }
       }
 }
@@ -222,7 +222,7 @@ chain_traverse(mgraph *g, mgraph_data *dd, int v)
   dd->visited[v] = 1;
   dd->chains[v] = dd->nchains;
   for (int u = 0; u < g->n; u++)
-    if (dd->visited[u] == 0 && DD_IDX(dd,v,u) == TREE_EDGE)
+    if (dd->visited[u] == 0 && DD_IDX(dd,v,u))// == TREE_EDGE)
       chain_traverse(g, dd, u);
   //if (mg_get_edge_mult(g,v,u) && (dd->num[u] < dd->num[v])) // uv is backedge
 }
@@ -233,7 +233,7 @@ chain_decomp(mgraph *g)
   mgraph_data *dd = new_mgraph_data(g->n);
 
   for (int v = 0; v < g->n; v++)
-    if (dd->num[v] == UNVISITED)
+    if (dd->num[v] == -1)
       {
         DFS(g, dd, v, v);
         dd->ncomps++;
@@ -245,13 +245,15 @@ chain_decomp(mgraph *g)
     {
       int v = dd->dfi[i];
       for (int u = 0; u < g->n; u++)
-        if (dd->visited[u] == 0 && DD_IDX(dd,v,u) == BACK_EDGE)
+        if (dd->visited[u] == 0 && DD_IDX(dd,v,u))// == BACK_EDGE)
           {
             dd->nchains++;
             //printf("calling traverse: %d\n", u);
             chain_traverse(g, dd, u);
           }
     }
+
+  //print_mgraph_data(stdout, dd);
 
   return dd;
 }
@@ -261,8 +263,6 @@ medge_is_bridge(mgraph *g, medge e)
 {
   if (mg_get_edge_mult(g, e.a, e.b) != 1) return false;
   mgraph_data *dd = chain_decomp(g);
-
-  //print_mgraph_data(stdout, dd);
 
   bool is_bridge = false;
   if (dd->chains[e.a] != dd->chains[e.b] || dd->is_tree) is_bridge = true;

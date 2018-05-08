@@ -19,21 +19,18 @@ def getCoeff(s,x,y):
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        print('usage: {} deg fname1 fname2'.format(sys.argv[0]))
-        sys.exit(1)
+        print('usage: {0} deg fname1 fname2'.format(sys.argv[0]))
+        exit()
     deg = int(sys.argv[1])
     fname1 = sys.argv[2]
     fname2 = sys.argv[3]
     f1 = open(fname1, 'r').read()
     f2 = open(fname2, 'r').read()
 
-    retval = 0
     for x in range(deg):
         for y in range(deg):
             if getCoeff(f1,x,y) != getCoeff(f2,x,y):
                 print('x^{0}*y^{1} : {2} != {3}'.format(
                     x, y, getCoeff(f1,x,y), getCoeff(f2,x,y)))
-                retval = 1
             #print('1: {}*x^{}*y^{}'.format(getCoeff(f1,x,y), x, y))
             #print('2: {}*x^{}*y^{}'.format(getCoeff(f2,x,y), x, y))
-    #sys.exit(retval)

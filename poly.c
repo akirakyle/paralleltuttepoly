@@ -20,8 +20,8 @@ free_poly(poly *p)
 long *
 poly_coeff(poly *A, int x, int y)
 {
-  if (x > A->x_deg) return 0;
-  if (y > A->y_deg) return 0;
+  //if (x > A->x_deg) return 0;
+  //if (y > A->y_deg) return 0;
   return &A->c[y + x*(A->y_deg+1)];
 }
 
@@ -90,8 +90,8 @@ poly_mult(poly *A, poly *B)
     for (int ay = 0; ay <= A->y_deg; ay++)
       for (int bx = 0; bx <= B->x_deg; bx++)
         for (int by = 0; by <= B->y_deg; by++)
-          *poly_coeff(C, ax+bx, ay+by) = ( (*poly_coeff(A, ax, ay)) *
-                                           (*poly_coeff(B, bx, by)) );
+          *poly_coeff(C, ax+bx, ay+by) += ( (*poly_coeff(A, ax, ay)) *
+                                            (*poly_coeff(B, bx, by)) );
   free_poly(A); free_poly(B);
   return C;
 }
