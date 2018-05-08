@@ -34,156 +34,6 @@ https://en.wikipedia.org/wiki/Bridge_(graph_theory)#Bridge-Finding_with_Chain_De
 http://mailman.anu.edu.au/pipermail/nauty/2004-February/000121.html
 http://mailman.anu.edu.au/pipermail/nauty/2004-April/000166.html
 
-* Project proposal
-** Summary
- I will implement and optimize an algorithm to compute the Tutte Polynomial for
- arbitrary graphs using both MPI and openMP. I will examine the effect of
- different edge selection heuristics on the performance scaling of the program. 
-
-** Background
- In the search for a proof to the four color theorem, the mathematician George
- David Birkhoff came up with the Chromatic Polynomial which counts the number of
- possible colorings of a graph as a function of $k$ possible colors to color it
- with. If one can show that this polynomial is positive for all planar graphs
- when $k=4$, then one proves the four color theorem. While it didn't prove useful
- in actually proving the four color theorem, W.T. Tutte generalized this
- chromatic polynomial to the Tutte Polynomial which has become an important Graph
- invariant that has been related to results from knot theory, combinatorics, and
- statistical physics. 
-
- The Tutte Polynomial can be defined recursively using edge contraction ($G/e$)
- and edge deletion ($G - e$) on an undirected graph $G$ as
-
- \[T_G(x,y) = T_{G-e}(x,y) + T_{G/e}(x,y)\]
-
- where $e$ must be neither a bridge nor a loop. The base case being when $G$
- contains only $i$ bridges and $j$ loops is $T_G(x,y) = x^iy^j$
-
- The Tutte polynomial can also be given in closed form for a graph $G = (V, E)$
- by:
-
- \[T_G(x,y) = \sum_A\subseteq E (x-1)^{k(A) - k(E)}(y-1)^{k(A) + |A| - |V|}\] 
-
- Where $k(A)$ is the number of connected components of $(V,A)$. 
-
- From this statement of the Tutte polynomial one can guess that it happens to #P
- hard, as the sum is over the power set of the edges. Evaluating the it a various
- points yields various results of interest, for example $y=0$ gives the chromatic
- polynomial. The Wikipedia page has a good summary of this discussion
- ([[https://en.wikipedia.org/wiki/Tutte_polynomial]]).
-
-** The Challenge
-
- Between the two definitions given above, the recursive definition is the most
- promising for implementing a fast algorithm. This is because it naturally
- creates a computation tree with potentially redundant computation being
- performed along some branches which we can use Dynamic Programming ideas to
- speedup. The following illustration (taken from the wikipedia article)
- illustrates an example of calculating the Tutte polynomial using the recursive
- deletion-contraction definition.
-
- #+attr_latex: :width 4in
- [[file:figs/Deletion-contraction.svg]]
-
- To find branches with redundant computation we need to be able to identify
- isomorphic graphs. One of the most prominent programs for doing so is the nauty
- and Traces program written by Brendan McKay ([[http://pallini.di.uniroma1.it/]]).
- This program can output a canonical labeling for a graph which can then be used
- as a key in a graph cache.
-
- The interesting issues to consider in paralleling this will be surrounding this
- cache as it is the central part to speeding up this otherwise intractable
- computation. Sharing this cache safely and efficiently across all the processes
- in MPI may be difficult and might benefit from compressing the graphs. Also
- locking the cache data structure within a process in openMP when it needs to be
- updated will be tricky to keep the overhead low.
-
- Furthermore while each of the two recursive calls can be done in parallel, it is
- not guaranteed that each will have an equal division of work, especially if one
- side ends up having more cache hits than the other, so scheduling will be
- another issue that will likely have to be done dynamically, potentially with
- some type of work queue. Hiding latency can be a potential area for speedups
- since finding the graph isomorphisms is a relatively compute intensive process
- while the cache lookup and additions are a memory intensive process. Finally the
- usual
-
-** Resources
- /Computing Tutte Polynomials/ by Gary Haggard, David J. Pearce, and Gordon Royle
- (2010) will probably be the basis of my implementation as they seem to have the
- ``current'' best implementation. Their code is available on David Pearce’s web-
- site at [[http://homepages.ecs.vuw.ac.nz/~djp/tutte/]] and is implemented in C++.
- This will serve as my reference to check against for both correctness and
- sequential performance, however I will likely rewrite this from scratch in
- fortran (since I'll be spending my summer internship in fortran so I'd like to
- get some practice) to ensure I understand the algorithm completely (it's not a
- very substantial amount of code). Like their implementation, I will use Brendan
- McKay's nauty for finding graph isomorphisms.
-
- I may also checkout Mathematica's function to compute the Tutte polynomial as
- another benchmark to compare to
- ([[http://reference.wolfram.com/language/ref/TuttePolynomial.html]]).
-
- Furthermore a more recent paper /A new edge selection heuristic for computing
- the Tutte polynomial of an undirected graph./ by Michael Monagan (2018) proposes
- a different heuristic from those of Haggard, Pearce, Royale that Monagan claims
- offers massive speedups on many types of graphs. His implementation is in Maple
- and is available at [[http://www.cecm.sfu.ca/~mmonagan/tutte/]].
-
- Finally an older paper /Computing the Tutte Polynomial in Vertex-Exponential
- Time/ by Andreas Björklund, Thore Husfeldt, Petteri Kaski, Mikko Koivisto (2008)
- which is referenced by Haggard, Pearce, Royle has code available here
- [[https://github.com/thorehusfeldt/tutte_bhkk]] along with a nice blog post
- using it here [[http://mhenderson.net/page3/]].
-
- I think between the latedays cluster and the ghc machines, I will be sufficient
- hardware to perform scaling experiments and performance assessments.
-
-** Goals and Deliverables
-*** Plan to achieve
- - A complete working program using MPI capable of correctly computing Tutte
-   polynomials at speeds comparable to the reference implementations and with
-   good performance scaling .
- - The three edge selection heuristics (2 from Haggard, Pearce, Royle, 1 from
-   Monagan) implemented and a comparison of their performance scaling.
-
-*** Hope to achieve
- - Verifying the result listed of Pearce's website of the Tutte polynomial of the
-   Truncated Icosahedron.
-
- Haggard, Pearce, Royle claim it took one week on 150 machines to calculate,
- however Monagan claims it took four minutes on a single cpu using his edge
- selection heuristic. I would like to be able to meet and exceed both of these
- benchmarks for performance however its difficult to specify a speedup since
- Pearce doesn't list the machine specs used, however given this was achieved in
- 2009, I expect the specs on the latedays cluster to be much better. As for the
- Monagan result, since he implemented this in Mapel using no isomorphism test, I
- would hope to get at least a 2x speedup (conservative) due to not having the
- overhead of the maple runtime and additional speedup of from additional pruning
- the computation tree due to isomorphisms.
-
- - An openMP implementation to compare with the MPI implementation.
- - A combined MPI and openMP implementation to compare to the individual
-   implementations.
-
-** Platform Choice
- I will use fortran (since I'll be spending my summer internship in fortran so
- I'd like to get some practice) and MPI and openMP and run on the latedays
- cluster and ghc machines. For this type of application MPI is the most important
- to utilize since to have hope to scale to really massive graphs exceeding what
- can be held in memory by a single machine, it is necessary to use a distributed
- model.
-
-** Schedule
- - Week of April 16th
-   - Test harness and sequential implementation
-   - Understanding of nauty canonical labeling format and code to interface with
-     it (necessary for graph cache)
- - Week of April 23rd
-   - Parallel MPI implementation with graph cache and Haggard, Pearce, Royle
-     heuristics 
- - Week of April 30th
-   - Parallel OpenMP implementation with Monagan heuristic.
-
 
 * Nauty info
 
@@ -201,8 +51,7 @@ INITSEED: seed=416931912
 #+end_example
 
 
-* Code
-** setup
+* setup
 #+begin_src bash :dir ~/class/parallel/project :results raw drawer
 rsync -azP --no-perms ~/class/parallel/project/nauty26r10 latedays:
 rsync -azP --no-perms ~/class/parallel/project/tuttepoly-v0.9.18 latedays:
@@ -229,10 +78,10 @@ done
 :RESULTS:
 :END:
 
-** onetest
-   :PROPERTIES:
-   :header-args: :dir /ssh:latedays:paralleltuttepoly :results raw drawer
-   :END:
+* onetest
+  :PROPERTIES:
+  :header-args: :dir /ssh:latedays:paralleltuttepoly :results raw drawer
+  :END:
 #   :header-args: :session latedays :results raw drawer
 
 #+name: test_fns
@@ -295,47 +144,69 @@ function regress() {
 {{{test_fns}}}
 function onetest() {
     #dretest hpr/edge14.dre
-    gengtest 7 773
+    #gengtest 7 773
+    gengtest 4 6
 }
 make
 onetest | dotviz graph.pdf
-onetest | mytutte > mytutte.out
+onetest | mytutte #> mytutte.out
 echo
-onetest | hprtutte > hprtutte.out
-./polyDiff.py 7 mytutte.out hprtutte.out
+onetest | hprtutte #> hprtutte.out
+#./polyDiff.py 7 mytutte.out hprtutte.out
 #+end_src
 
 #+RESULTS:
 :RESULTS:
 make: Nothing to be done for `all'.
+bfs queue:
+len=1
+0x1c25490: g: 0x1c253d0, parent: 0x1c25460, type: -1
+len=1
+0x1c25620: g: 0x1c253d0, parent: 0x1c254d0, type: 1
+len=1
+0x1c25690: g: 0x1c253d0, parent: 0x1c25640, type: 1
+len=1
+0x1c25700: g: 0x1c253d0, parent: 0x1c256b0, type: 1
+dfs tutte:
+poly stuff:
+len=4
+0x1c254d0: parent: 0x1c25460, type: 1, dctype: -1, pd: (nil), pc: (nil)
+0x1c25640: parent: 0x1c254d0, type: 1, dctype: 1, pd: (nil), pc: (nil)
+0x1c256b0: parent: 0x1c25640, type: 1, dctype: 1, pd: (nil), pc: (nil)
+0x1c25720: parent: 0x1c256b0, type: 3, dctype: 1, pd: (nil), pc: (nil)
+c1: 0, c2:0, c3:0
+len=3
+0x1c254d0: parent: 0x1c25460, type: 1, dctype: -1, pd: (nil), pc: (nil)
+0x1c25640: parent: 0x1c254d0, type: 1, dctype: 1, pd: (nil), pc: (nil)
+0x1c256b0: parent: 0x1c25640, type: 1, dctype: 1, pd: (nil), pc: 0x1c256e0
+T = 1 :
+c1: 0, c2:0, c3:0
+len=2
+0x1c254d0: parent: 0x1c25460, type: 1, dctype: -1, pd: (nil), pc: (nil)
+0x1c25640: parent: 0x1c254d0, type: 1, dctype: 1, pd: (nil), pc: 0x1c255c0
+T = 1*x :
+c1: 0, c2:0, c3:0
+len=1
+0x1c254d0: parent: 0x1c25460, type: 1, dctype: -1, pd: (nil), pc: 0x1c255e0
+T = 1*x^2 :
+c1: 0, c2:0, c3:0
+T = 1*x^3 :
+Time : 0.00
 
-x^0*y^1 : 24 != 22
-x^0*y^2 : 78 != 68
-x^0*y^3 : 120 != 98
-x^0*y^4 : 126 != 95
-x^0*y^5 : 105 != 71
-x^0*y^6 : 73 != 42
-x^1*y^0 : 24 != 22
-x^1*y^1 : 122 != 107
-x^1*y^2 : 201 != 162
-x^1*y^3 : 196 != 141
-x^1*y^4 : 143 != 88
-x^1*y^5 : 84 != 40
-x^1*y^6 : 38 != 12
-x^2*y^0 : 68 != 61
-x^2*y^1 : 165 != 136
-x^2*y^2 : 153 != 109
-x^2*y^3 : 87 != 50
-x^2*y^4 : 36 != 13
-x^2*y^5 : 9 != 1
-x^2*y^6 : 1 != 0
-x^3*y^0 : 74 != 65
-x^3*y^1 : 87 != 66
-x^3*y^2 : 36 != 21
-x^3*y^3 : 7 != 2
-x^4*y^0 : 39 != 34
-x^4*y^1 : 16 != 11
-x^5*y^0 : 10 != 9
+G[1] := {0--2,0--3,1--3}
+TP[1] := 1*x^3 :
+=======
+V = 4, E = 3
+Size of Computation Tree: 1 graphs.
+Number of Biconnected Components Extracted: 0.
+Number of Biconnected Components Separated: 0.
+Number of Cycles Terminated: 0.
+Number of Trees Terminated: 1.
+Number of Completed Graphs Terminated: 0.
+Time : 0s
+T(1,1) = 1
+T(2,2) = 8 (should be 8)
+T(-1,-1) = -2^0
 :END:
 
 

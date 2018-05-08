@@ -9,8 +9,8 @@ IFLAGS= -Inauty
 
 NAUTYLIB = nauty/nauty.a
 
-CFILES = cycletimer.c stack.c mgraph.c poly.c tutte.c findtutte.c
-HFILES = cycletimer.h stack.h mgraph.h poly.h tutte.h
+CFILES = cycletimer.c linked_list.c mgraph.c poly.c tutte.c findtutte.c
+HFILES = cycletimer.h linked_list.h mgraph.h poly.h tutte.h
 
 all: tutte # tutte-mpi
 
