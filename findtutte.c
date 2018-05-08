@@ -4,7 +4,7 @@ int verbose = 0;
 
 #define print(...) if (verbose) printf(__VA_ARGS__)
 
-#define USAGE "Usage: tutte [-h] [-q] [-p#] [infile [outfile]]\n"
+#define USAGE "Usage: tutte [-h] [-q] [-p#] [-s#] [infile [outfile]]\n"
 
 #define HELPTEXT                                                        \
   " Computes the Tutte polynomial of a graph.\n\
@@ -13,8 +13,10 @@ int verbose = 0;
 \n\
     outfile  the output file for the computed polynomial.\n\
 \n\
-    -p#  choose the which graph in the input file.\n\
+    -p#  choose which graph in the input file to use.\n\
          The first graph is number 1. (default 1)\n\
+    -s#  set the number of elements the head process should\n\
+         queue for the workers. (default 12)\n\
     -v  be verbose\n\
     -h  show this help text\n"
 
@@ -31,8 +33,9 @@ main(int argc, char *argv[])
 
   int c;
   long position = 1;
+  int nsplit = 12;
 
-  while ((c = getopt (argc, argv, "hvp:")) != -1)
+  while ((c = getopt (argc, argv, "hvp:s:")) != -1)
     switch (c)
       {
       case 'h':
@@ -43,6 +46,9 @@ main(int argc, char *argv[])
         break;
       case 'p':
         position = strtol(optarg,(char **)NULL, 10);
+        break;
+      case 's':
+        nsplit = (int)strtol(optarg,(char **)NULL, 10);
         break;
       case '?':
         printf("%s", USAGE);
@@ -68,8 +74,9 @@ main(int argc, char *argv[])
 
   mgraph *mg = nautygraph_to_mgraph(gg,n,m);
 
+  tutte_options to = { .nsplit = nsplit };
+
   double t = currentSeconds();
-  tutte_options to = { .nsplit = 3 };
   poly *p = run_tutte(to, mg);
   t = currentSeconds() - t;
 

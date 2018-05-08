@@ -134,6 +134,12 @@ function regress() {
     #multigengtest 7 1044
     #multidretest test
 }
+function timing() {
+    for i in `seq 12 35`; do
+    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mytutte | sed '2!d'
+    #nauty/geng -q 7 | sed $i'!d' | nauty/showg -qe | sed '1!d'
+    done
+}
 #+end_src
 
 #+RESULTS: test_fns
@@ -145,11 +151,12 @@ function regress() {
 function onetest() {
     #dretest hpr/edge14.dre
     #gengtest 7 773
-    gengtest 4 6
+    gengtest 3 4
 }
 make
 onetest | dotviz graph.pdf
-onetest | mytutte #> mytutte.out
+onetest | mytutte 12 #> mytutte.out
+# timing
 echo
 onetest | hprtutte #> hprtutte.out
 #./polyDiff.py 7 mytutte.out hprtutte.out
@@ -157,57 +164,25 @@ onetest | hprtutte #> hprtutte.out
 
 #+RESULTS:
 :RESULTS:
-make: Nothing to be done for `all'.
-bfs queue:
-len=1
-0x1c25490: g: 0x1c253d0, parent: 0x1c25460, type: -1
-len=1
-0x1c25620: g: 0x1c253d0, parent: 0x1c254d0, type: 1
-len=1
-0x1c25690: g: 0x1c253d0, parent: 0x1c25640, type: 1
-len=1
-0x1c25700: g: 0x1c253d0, parent: 0x1c256b0, type: 1
-dfs tutte:
-poly stuff:
-len=4
-0x1c254d0: parent: 0x1c25460, type: 1, dctype: -1, pd: (nil), pc: (nil)
-0x1c25640: parent: 0x1c254d0, type: 1, dctype: 1, pd: (nil), pc: (nil)
-0x1c256b0: parent: 0x1c25640, type: 1, dctype: 1, pd: (nil), pc: (nil)
-0x1c25720: parent: 0x1c256b0, type: 3, dctype: 1, pd: (nil), pc: (nil)
-c1: 0, c2:0, c3:0
-len=3
-0x1c254d0: parent: 0x1c25460, type: 1, dctype: -1, pd: (nil), pc: (nil)
-0x1c25640: parent: 0x1c254d0, type: 1, dctype: 1, pd: (nil), pc: (nil)
-0x1c256b0: parent: 0x1c25640, type: 1, dctype: 1, pd: (nil), pc: 0x1c256e0
-T = 1 :
-c1: 0, c2:0, c3:0
-len=2
-0x1c254d0: parent: 0x1c25460, type: 1, dctype: -1, pd: (nil), pc: (nil)
-0x1c25640: parent: 0x1c254d0, type: 1, dctype: 1, pd: (nil), pc: 0x1c255c0
-T = 1*x :
-c1: 0, c2:0, c3:0
-len=1
-0x1c254d0: parent: 0x1c25460, type: 1, dctype: -1, pd: (nil), pc: 0x1c255e0
-T = 1*x^2 :
-c1: 0, c2:0, c3:0
-T = 1*x^3 :
+gcc -g -O3 -Wall -Wno-unused-variable -std=gnu99  -o tutte cycletimer.c linked_list.c mgraph.c poly.c tutte.c findtutte.c nauty/nauty.a  -Inauty
+T = 1*y + 1*x + 1*x^2 :
 Time : 0.00
 
-G[1] := {0--2,0--3,1--3}
-TP[1] := 1*x^3 :
-=======
-V = 4, E = 3
-Size of Computation Tree: 1 graphs.
-Number of Biconnected Components Extracted: 0.
-Number of Biconnected Components Separated: 0.
-Number of Cycles Terminated: 0.
-Number of Trees Terminated: 1.
-Number of Completed Graphs Terminated: 0.
-Time : 0s
-T(1,1) = 1
-T(2,2) = 8 (should be 8)
-T(-1,-1) = -2^0
+G[1] := {0--1,0--2,1--2}
+TP[1] := 1*y + 1*x + 1*x^2 :
 :END:
+#+begin_src bash :noweb yes
+{{{test_fns}}}
+multigengtest 4 8
+#make
+#gengtest 3 1 | mytutte 12
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+:END:
+
+
 
 
 * local variables

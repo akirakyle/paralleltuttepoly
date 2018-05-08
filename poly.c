@@ -10,6 +10,30 @@ new_poly(int x_deg, int y_deg)
   return p;
 }
 
+poly *
+new_poly_id()
+{
+  poly *id = new_poly(0,0);
+  *poly_coeff(id, 0, 0) = 1;
+  return id;
+}
+poly *
+new_poly_x1()
+{
+  poly *x = new_poly(1,0);
+  *poly_coeff(x, 0, 0) = 0;
+  *poly_coeff(x, 1, 0) = 1;
+  return x;
+}
+poly *
+new_poly_y1()
+{
+  poly *y = new_poly(0,1);
+  *poly_coeff(y, 0, 0) = 0;
+  *poly_coeff(y, 0, 1) = 1;
+  return y;
+}
+
 void
 free_poly(poly *p)
 {

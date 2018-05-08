@@ -46,3 +46,9 @@ function regress() {
     #multigengtest 7 1044
     #multidretest test
 }
+function timing() {
+    for i in `seq 12 35`; do
+    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mytutte | sed '2!d'
+    #nauty/geng -q 7 | sed $i'!d' | nauty/showg -qe | sed '1!d'
+    done
+}

@@ -24,27 +24,20 @@ typedef struct tutte_options
   int nsplit;
 } tutte_options;
 
-typedef enum{Recursive, Bridge, Loop, Base} comp_tree_el_type;
-typedef enum{Deletion, Contraction} del_con_type;
+typedef enum{Base, Recurse, Bridge, Loop} comp_tree_el_type;
 
-typedef struct comp_tree_el comp_tree_el;
-struct comp_tree_el //computation tree element
+typedef struct comp_tree_el //computation tree element
 {
-  //  mgraph *g;
-  //comp_tree_el *D;
-  //comp_tree_el *C;
   poly *pd;
   poly *pc;
-  comp_tree_el *parent;
+  poly **parent_p;
   comp_tree_el_type type;
-  del_con_type dctype;
-};
+} comp_tree_el;
 
 typedef struct queued_graph
 {
   mgraph *g;
-  comp_tree_el *parent;
-  del_con_type dctype;
+  poly **parent_p;
 } queued_graph;
 
 poly *run_tutte(tutte_options to, mgraph *g);

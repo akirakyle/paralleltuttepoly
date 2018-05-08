@@ -18,12 +18,15 @@ typedef struct poly
   int x_deg;
 } poly;
 
-poly * new_poly(int x_deg, int y_deg);
+poly *new_poly(int x_deg, int y_deg);
+poly *new_poly_id();
+poly *new_poly_x1();
+poly *new_poly_y1();
 void free_poly(poly *p);
 void print_poly(FILE *fout, poly *p);
 
-long * poly_coeff(poly *A, int x, int y);
-poly * poly_add(poly *A, poly *B);
-poly * poly_mult(poly *A, poly *B);
+long *poly_coeff(poly *A, int x, int y);
+poly *poly_add(poly *A, poly *B);
+poly *poly_mult(poly *A, poly *B);
 
 #endif /* _POLY_H_  */
