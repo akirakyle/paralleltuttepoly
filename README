@@ -1,0 +1,6 @@
+Parallel Computation of the Tutte Polynomial
+
+This code was written for the Spring 2018 Final Project of 15-418: Parallel
+Computer Architecture and Programming at Carnegie Mellon University
+
+See <https://akirakyle.github.io/paralleltuttepoly/> for the project report
