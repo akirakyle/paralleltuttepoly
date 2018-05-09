@@ -89,6 +89,9 @@ done
 function mytutte {
     ./tutte
 }
+function mpitutte {
+    mpirun -n $1 ./tutte-mpi -s$2
+}
 function hprtutte() {
     gtoHPRg | hprtutte/tutte/tutte --stdin
 }
@@ -115,6 +118,14 @@ function multigengtest() {
         ./polyDiff.py $1 output/geng/mytutte-$1-$i.out output/geng/hprtutte-$1-$i.out
     done
 }
+function mpimultigengtest() {
+    mkdir -p output/geng
+    for i in `seq 2 $2`; do
+        gengtest $1 $i | mpitutte $3 > output/geng/mytutte-$1-$i.out
+        gengtest $1 $i | hprtutte > output/geng/hprtutte-$1-$i.out
+        ./polyDiff.py $1 output/geng/mytutte-$1-$i.out output/geng/hprtutte-$1-$i.out
+    done
+}
 function multidretest() {
     mkdir -p output/$1
     for i in $( ls graphs/$1 ); do
@@ -136,7 +147,8 @@ function regress() {
 }
 function timing() {
     for i in `seq 12 35`; do
-    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mytutte | sed '2!d'
+    #nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mytutte | sed '2!d'
+    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mpitutte 4 12 | sed '2!d'
     #nauty/geng -q 7 | sed $i'!d' | nauty/showg -qe | sed '1!d'
     done
 }
@@ -146,44 +158,55 @@ function timing() {
 :RESULTS:
 :END:
 
+#+begin_src bash :tangle latedays.sh
+#!/bin/bash
+cd $PBS_O_WORKDIR
+mpirun -n2 ./tutte-mpi
+#+end_src
+
+#+RESULTS:
+:RESULTS:
+:END:
+
 #+begin_src bash :noweb yes
 {{{test_fns}}}
 function onetest() {
     #dretest hpr/edge14.dre
     #gengtest 7 773
-    gengtest 3 4
+    gengtest 5 10
 }
 make
-onetest | dotviz graph.pdf
-onetest | mytutte 12 #> mytutte.out
-# timing
+#onetest | dotviz graph.pdf
+#onetest | mytutte #> mytutte.out
+#onetest | mpitutte 2
+timing
 echo
-onetest | hprtutte #> hprtutte.out
+#onetest | hprtutte #> hprtutte.out
 #./polyDiff.py 7 mytutte.out hprtutte.out
 #+end_src
 
 #+RESULTS:
 :RESULTS:
-gcc -g -O3 -Wall -Wno-unused-variable -std=gnu99  -o tutte cycletimer.c linked_list.c mgraph.c poly.c tutte.c findtutte.c nauty/nauty.a  -Inauty
-T = 1*y + 1*x + 1*x^2 :
+make: Nothing to be done for `all'.
+dfs tutte body:
+T = 1*x^4 :
 Time : 0.00
 
-G[1] := {0--1,0--2,1--2}
-TP[1] := 1*y + 1*x + 1*x^2 :
+G[1] := {0--3,0--4,1--4,2--4}
+TP[1] := 1*x^4 :
 :END:
 #+begin_src bash :noweb yes
 {{{test_fns}}}
-multigengtest 4 8
+#multigengtest 4 8
 #make
 #gengtest 3 1 | mytutte 12
+#regress
+mpimultigengtest 5 34 4
 #+end_src
 
 #+RESULTS:
 :RESULTS:
 :END:
-
-
-
 
 * local variables
 # Local Variables:

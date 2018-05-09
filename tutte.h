@@ -8,6 +8,15 @@
 
 #include "cycletimer.h"
 
+/* Defining variable MPI enables use of MPI primitives */
+#ifndef MPI
+#define MPI 0
+#endif
+
+#if MPI
+#include <mpi.h>
+#endif
+
  /* MAXN=0 is defined by nauty.h, which implies dynamic allocation */
 #include "nauty.h"
 #include "gtools.h"
@@ -21,6 +30,7 @@
 
 typedef struct tutte_options
 {
+  int nprocess;
   int nsplit;
 } tutte_options;
 
@@ -40,7 +50,8 @@ typedef struct queued_graph
   poly **parent_p;
 } queued_graph;
 
-poly *run_tutte(tutte_options to, mgraph *g);
 poly *tutte(mgraph *g);
+poly *master_tutte(tutte_options to, mgraph *g);
+void worker_tutte();
 
 #endif /* _TUTTE_H_  */

@@ -1,6 +1,9 @@
 function mytutte {
     ./tutte
 }
+function mpitutte {
+    mpirun -n $1 ./tutte-mpi -s$2
+}
 function hprtutte() {
     gtoHPRg | hprtutte/tutte/tutte --stdin
 }
@@ -27,6 +30,14 @@ function multigengtest() {
         ./polyDiff.py $1 output/geng/mytutte-$1-$i.out output/geng/hprtutte-$1-$i.out
     done
 }
+function mpimultigengtest() {
+    mkdir -p output/geng
+    for i in `seq 2 $2`; do
+        gengtest $1 $i | mpitutte $3 > output/geng/mytutte-$1-$i.out
+        gengtest $1 $i | hprtutte > output/geng/hprtutte-$1-$i.out
+        ./polyDiff.py $1 output/geng/mytutte-$1-$i.out output/geng/hprtutte-$1-$i.out
+    done
+}
 function multidretest() {
     mkdir -p output/$1
     for i in $( ls graphs/$1 ); do
@@ -48,7 +59,8 @@ function regress() {
 }
 function timing() {
     for i in `seq 12 35`; do
-    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mytutte | sed '2!d'
+    #nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mytutte | sed '2!d'
+    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mpitutte 4 12 # | sed '2!d'
     #nauty/geng -q 7 | sed $i'!d' | nauty/showg -qe | sed '1!d'
     done
 }

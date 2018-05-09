@@ -12,7 +12,7 @@ NAUTYLIB = nauty/nauty.a
 CFILES = cycletimer.c linked_list.c mgraph.c poly.c tutte.c findtutte.c
 HFILES = cycletimer.h linked_list.h mgraph.h poly.h tutte.h
 
-all: tutte # tutte-mpi
+all: tutte tutte-mpi
 
 tutte: $(CFILES) $(HFILES)
 	$(CC) $(CFLAGS) -o tutte $(CFILES) $(NAUTYLIB) $(LDFLAGS) $(IFLAGS)

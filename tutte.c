@@ -173,8 +173,27 @@ print_queued_graph(FILE *fout, void *qgv)
   fprintf(fout, "%p: g: %p, parent_p: %p\n", qg, qg->g, qg->parent_p);
 }
 
+#if MPI
+void
+worker_tutte()
+{
+  //printf("worker started\n");
+  int n;
+  poly *p;
+  while (1) {
+    MPI_Recv(&n,1,MPI_INT,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    if (n < 0) return;
+    mgraph *g = empty_mgraph(n);
+    MPI_Recv(g->g,n * n,MPI_INT,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    poly *p = tutte(g);
+    MPI_Send(&p->x_deg,1,MPI_INT,0,3,MPI_COMM_WORLD);
+    MPI_Send(&p->y_deg,1,MPI_INT,0,4,MPI_COMM_WORLD);
+    MPI_Send(p->c,(p->x_deg+1)*(p->y_deg+1),MPI_INT,0,5,MPI_COMM_WORLD);
+  }
+}
+
 poly *
-run_tutte(tutte_options to, mgraph *og)
+master_tutte(tutte_options to, mgraph *og)
 {
   queue *s = stack_new();
   queue *q = queue_new();
@@ -198,7 +217,6 @@ run_tutte(tutte_options to, mgraph *og)
           free_mgraph(g);
         }
       else
-      if (e.a != -1)
         {
           if (!medge_is_loop(g, e) && !medge_is_bridge(g, e))
             {
@@ -224,16 +242,41 @@ run_tutte(tutte_options to, mgraph *og)
     }
 
   //printf("dfs tutte:\n");
-  while (q->len > 0)
-    {
-      //queue_print(stdout, q, print_queued_graph);
-      //stack_print(stdout, s, print_comp_tree_el);
+  poly ***mpi_parent_p = (poly ***)malloc(to.nprocess * sizeof(poly **));
+  int nsent = 0;
+  int nrecv = 0;
+  do {
+    //queue_print(stdout, q, print_queued_graph);
+    //stack_print(stdout, s, print_comp_tree_el);
+    MPI_Status status;
+    int x_deg, y_deg;
+    int src = nsent;
+    if (nsent >= to.nprocess)
+      {
+        MPI_Recv(&x_deg, 1, MPI_INT, MPI_ANY_SOURCE, 3, MPI_COMM_WORLD, &status);
+        int src = status.MPI_SOURCE;
+        MPI_Recv(&y_deg, 1, MPI_INT, src, 4, MPI_COMM_WORLD, &status);
+        poly *p = new_poly(x_deg, y_deg);
+        MPI_Recv(p->c, (x_deg+1)*(y_deg+1), MPI_INT, src, 5, MPI_COMM_WORLD, &status);
+        *mpi_parent_p[src] = p;
+        nrecv++;
+      }
 
-      queued_graph *qg = (queued_graph *)queue_deq(q);
-      *qg->parent_p = tutte(qg->g);
-      free_queued_graph(qg);
-    }
+    if (q->len > 0)
+      {
+        queued_graph *qg = (queued_graph *)queue_deq(q);
+        int n = qg->g->n;
+        MPI_Send(&n,1,MPI_INT,src,0,MPI_COMM_WORLD);
+        MPI_Send(qg->g->g,n*n,MPI_INT,src,1,MPI_COMM_WORLD);
+        mpi_parent_p[src] = qg->parent_p;
+        free_queued_graph(qg);
+        nsent++;
+      }
+  } while (nsent != nrecv);
   queue_free(q);
+  int term_val = -1;
+  for (int i = 0; i < to.nprocess; i++)
+    MPI_Send(&term_val,1,MPI_INT,i,0,MPI_COMM_WORLD);
 
   //printf("poly stuff:\n");
   while (s->len > 0)
@@ -251,3 +294,4 @@ run_tutte(tutte_options to, mgraph *og)
   stack_free(s);
   return p_og;
 }
+#endif

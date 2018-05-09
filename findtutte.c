@@ -23,6 +23,17 @@ int verbose = 0;
 int
 main(int argc, char *argv[])
 {
+#if MPI
+  int nprocess = 1;
+  int process_id = 0;
+  MPI_Init(NULL, NULL);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocess);
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_id);
+  int nsplit = 12;
+  if (process_id == 0)
+    {
+#endif
+
   char* infile = NULL;
   char* outfile = NULL;
   FILE* fin = NULL;
@@ -33,7 +44,6 @@ main(int argc, char *argv[])
 
   int c;
   long position = 1;
-  int nsplit = 12;
 
   while ((c = getopt (argc, argv, "hvp:s:")) != -1)
     switch (c)
@@ -47,9 +57,11 @@ main(int argc, char *argv[])
       case 'p':
         position = strtol(optarg,(char **)NULL, 10);
         break;
+#if MPI
       case 's':
         nsplit = (int)strtol(optarg,(char **)NULL, 10);
         break;
+#endif
       case '?':
         printf("%s", USAGE);
         return 1;
@@ -74,10 +86,13 @@ main(int argc, char *argv[])
 
   mgraph *mg = nautygraph_to_mgraph(gg,n,m);
 
-  tutte_options to = { .nsplit = nsplit };
-
+  poly *p;
   double t = currentSeconds();
-  poly *p = run_tutte(to, mg);
+#if MPI
+  p = master_tutte((tutte_options){ .nprocess = nprocess, .nsplit = nsplit }, mg);
+#else
+  p = tutte(mg);
+#endif
   t = currentSeconds() - t;
 
   if (outfile == NULL)
@@ -91,6 +106,12 @@ main(int argc, char *argv[])
   print_poly(fout, p);
   free_poly(p);
   fprintf(fout, "Time : %.2f\n", t);
+
+#if MPI
+    }
+  else worker_tutte();
+  MPI_Finalize();
+#endif
 
   return 0;
 }
