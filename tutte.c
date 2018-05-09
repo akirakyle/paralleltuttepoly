@@ -177,7 +177,10 @@ print_queued_graph(FILE *fout, void *qgv)
 void
 worker_tutte()
 {
-  //printf("worker started\n");
+  int process_id;
+  MPI_Comm_rank(MPI_COMM_WORLD, &process_id);
+  //printf("worker %d started\n", process_id);
+
   int n;
   poly *p;
   while (1) {
@@ -248,13 +251,15 @@ master_tutte(tutte_options to, mgraph *og)
   do {
     //queue_print(stdout, q, print_queued_graph);
     //stack_print(stdout, s, print_comp_tree_el);
+    //printf("looping with nsent: %d nrecv: %d \n", nsent, nrecv);
     MPI_Status status;
     int x_deg, y_deg;
-    int src = nsent;
-    if (nsent >= to.nprocess)
+    int src = nsent+1;
+    if ((nsent >= to.nprocess-1 || q-> len == 0) && nsent != nrecv)
       {
         MPI_Recv(&x_deg, 1, MPI_INT, MPI_ANY_SOURCE, 3, MPI_COMM_WORLD, &status);
-        int src = status.MPI_SOURCE;
+        src = status.MPI_SOURCE;
+        //printf("recieved from %d\n", src);
         MPI_Recv(&y_deg, 1, MPI_INT, src, 4, MPI_COMM_WORLD, &status);
         poly *p = new_poly(x_deg, y_deg);
         MPI_Recv(p->c, (x_deg+1)*(y_deg+1), MPI_INT, src, 5, MPI_COMM_WORLD, &status);
@@ -264,6 +269,7 @@ master_tutte(tutte_options to, mgraph *og)
 
     if (q->len > 0)
       {
+        //printf("sent to %d\n", src);
         queued_graph *qg = (queued_graph *)queue_deq(q);
         int n = qg->g->n;
         MPI_Send(&n,1,MPI_INT,src,0,MPI_COMM_WORLD);

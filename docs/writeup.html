@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2018-05-09 Wed 12:23 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Parallel Computation of the Tutte Polynomial</title>
+<meta name="generator" content="Org mode" />
+<meta name="author" content="Akira Kyle" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center;
+             margin-bottom: .2em; }
+  .subtitle { text-align: center;
+              font-size: medium;
+              font-weight: bold;
+              margin-top:0; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { font-family: monospace; color: green; }
+  .priority { font-family: monospace; color: orange; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .org-right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .org-left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .org-center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  /* Languages per Org manual */
+  pre.src-asymptote:before { content: 'Asymptote'; }
+  pre.src-awk:before { content: 'Awk'; }
+  pre.src-C:before { content: 'C'; }
+  /* pre.src-C++ doesn't work in CSS */
+  pre.src-clojure:before { content: 'Clojure'; }
+  pre.src-css:before { content: 'CSS'; }
+  pre.src-D:before { content: 'D'; }
+  pre.src-ditaa:before { content: 'ditaa'; }
+  pre.src-dot:before { content: 'Graphviz'; }
+  pre.src-calc:before { content: 'Emacs Calc'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-fortran:before { content: 'Fortran'; }
+  pre.src-gnuplot:before { content: 'gnuplot'; }
+  pre.src-haskell:before { content: 'Haskell'; }
+  pre.src-hledger:before { content: 'hledger'; }
+  pre.src-java:before { content: 'Java'; }
+  pre.src-js:before { content: 'Javascript'; }
+  pre.src-latex:before { content: 'LaTeX'; }
+  pre.src-ledger:before { content: 'Ledger'; }
+  pre.src-lisp:before { content: 'Lisp'; }
+  pre.src-lilypond:before { content: 'Lilypond'; }
+  pre.src-lua:before { content: 'Lua'; }
+  pre.src-matlab:before { content: 'MATLAB'; }
+  pre.src-mscgen:before { content: 'Mscgen'; }
+  pre.src-ocaml:before { content: 'Objective Caml'; }
+  pre.src-octave:before { content: 'Octave'; }
+  pre.src-org:before { content: 'Org mode'; }
+  pre.src-oz:before { content: 'OZ'; }
+  pre.src-plantuml:before { content: 'Plantuml'; }
+  pre.src-processing:before { content: 'Processing.js'; }
+  pre.src-python:before { content: 'Python'; }
+  pre.src-R:before { content: 'R'; }
+  pre.src-ruby:before { content: 'Ruby'; }
+  pre.src-sass:before { content: 'Sass'; }
+  pre.src-scheme:before { content: 'Scheme'; }
+  pre.src-screen:before { content: 'Gnu Screen'; }
+  pre.src-sed:before { content: 'Sed'; }
+  pre.src-sh:before { content: 'shell'; }
+  pre.src-sql:before { content: 'SQL'; }
+  pre.src-sqlite:before { content: 'SQLite'; }
+  /* additional languages in org.el's org-babel-load-languages alist */
+  pre.src-forth:before { content: 'Forth'; }
+  pre.src-io:before { content: 'IO'; }
+  pre.src-J:before { content: 'J'; }
+  pre.src-makefile:before { content: 'Makefile'; }
+  pre.src-maxima:before { content: 'Maxima'; }
+  pre.src-perl:before { content: 'Perl'; }
+  pre.src-picolisp:before { content: 'Pico Lisp'; }
+  pre.src-scala:before { content: 'Scala'; }
+  pre.src-shell:before { content: 'Shell Script'; }
+  pre.src-ebnf2ps:before { content: 'ebfn2ps'; }
+  /* additional language identifiers per "defun org-babel-execute"
+       in ob-*.el */
+  pre.src-cpp:before  { content: 'C++'; }
+  pre.src-abc:before  { content: 'ABC'; }
+  pre.src-coq:before  { content: 'Coq'; }
+  pre.src-groovy:before  { content: 'Groovy'; }
+  /* additional language identifiers from org-babel-shell-names in
+     ob-shell.el: ob-shell is the only babel language using a lambda to put
+     the execution function name together. */
+  pre.src-bash:before  { content: 'bash'; }
+  pre.src-csh:before  { content: 'csh'; }
+  pre.src-ash:before  { content: 'ash'; }
+  pre.src-dash:before  { content: 'dash'; }
+  pre.src-ksh:before  { content: 'ksh'; }
+  pre.src-mksh:before  { content: 'mksh'; }
+  pre.src-posh:before  { content: 'posh'; }
+  /* Additional Emacs modes also supported by the LaTeX listings package */
+  pre.src-ada:before { content: 'Ada'; }
+  pre.src-asm:before { content: 'Assembler'; }
+  pre.src-caml:before { content: 'Caml'; }
+  pre.src-delphi:before { content: 'Delphi'; }
+  pre.src-html:before { content: 'HTML'; }
+  pre.src-idl:before { content: 'IDL'; }
+  pre.src-mercury:before { content: 'Mercury'; }
+  pre.src-metapost:before { content: 'MetaPost'; }
+  pre.src-modula-2:before { content: 'Modula-2'; }
+  pre.src-pascal:before { content: 'Pascal'; }
+  pre.src-ps:before { content: 'PostScript'; }
+  pre.src-prolog:before { content: 'Prolog'; }
+  pre.src-simula:before { content: 'Simula'; }
+  pre.src-tcl:before { content: 'tcl'; }
+  pre.src-tex:before { content: 'TeX'; }
+  pre.src-plain-tex:before { content: 'Plain TeX'; }
+  pre.src-verilog:before { content: 'Verilog'; }
+  pre.src-vhdl:before { content: 'VHDL'; }
+  pre.src-xml:before { content: 'XML'; }
+  pre.src-nxml:before { content: 'XML'; }
+  /* add a generic configuration mode; LaTeX export needs an additional
+     (add-to-list 'org-latex-listings-langs '(conf " ")) in .emacs */
+  pre.src-conf:before { content: 'Configuration File'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.org-right  { text-align: center;  }
+  th.org-left   { text-align: center;   }
+  th.org-center { text-align: center; }
+  td.org-right  { text-align: right;  }
+  td.org-left   { text-align: left;   }
+  td.org-center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara { display: inline; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  .org-svg { width: 90%; }
+  /*]]>*/-->
+</style>
+<style type="text/css">body{ max-width:50em; margin-left:auto; margin-right:auto; }</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2018 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        displayAlign: "center",
+        displayIndent: "0em",
+
+        "HTML-CSS": { scale: 100,
+                        linebreaks: { automatic: "false" },
+                        webFont: "TeX"
+                       },
+        SVG: {scale: 100,
+              linebreaks: { automatic: "false" },
+              font: "TeX"},
+        NativeMML: {scale: 100},
+        TeX: { equationNumbers: {autoNumber: "AMS"},
+               MultLineWidth: "85%",
+               TagSide: "right",
+               TagIndent: ".8em"
+             }
+});
+</script>
+<script type="text/javascript"
+        src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS_HTML"></script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">Parallel Computation of the Tutte Polynomial
+<br />
+<span class="subtitle">15-418 Summer 2018 Project Report</span>
+</h1>
+
+<div id="outline-container-org728962e" class="outline-2">
+<h2 id="org728962e"><span class="section-number-2">1</span> Summary</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+I implemented an algorithm to compute the Tutte Polynomial for arbitrary graphs
+and then attempted a parallel implementation using MPI. I experimented with a
+dynamic work scheduling mechanism to balance work among the processors. My code
+along with an HTML version of this report is available here:
+<a href="https://github.com/akirakyle/paralleltuttepoly">https://github.com/akirakyle/paralleltuttepoly</a>
+</p>
+</div>
+</div>
+
+<div id="outline-container-orgf9e3b16" class="outline-2">
+<h2 id="orgf9e3b16"><span class="section-number-2">2</span> Background</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+In the search for a proof to the four color theorem, the mathematician George
+David Birkhoff came up with the Chromatic Polynomial which counts the number of
+possible colorings of a graph as a function of \(k\) possible colors to color it
+with. If one can show that this polynomial is positive for all planar graphs
+when \(k=4\), then one proves the four color theorem. While it didn&rsquo;t prove useful
+in actually proving the four color theorem, W.T. Tutte generalized this
+chromatic polynomial to the Tutte Polynomial which has become an important Graph
+invariant that has been related to results from knot theory, combinatorics, and
+statistical physics.
+</p>
+
+<p>
+The Tutte Polynomial can be defined recursively using edge contraction (\(G/e\))
+and edge deletion (\(G - e\)) on an undirected graph \(G\) as
+</p>
+
+<p>
+\[T_G(x,y) = T_{G-e}(x,y) + T_{G/e}(x,y)\]
+</p>
+
+<p>
+where \(e\) must be neither a bridge nor a loop. The base case being when \(G\)
+contains only \(i\) bridges and \(j\) loops is \(T_G(x,y) = x^iy^j\)
+</p>
+
+<p>
+The Tutte polynomial can also be given in closed form for a graph \(G = (V, E)\)
+by:
+</p>
+
+<p>
+\[T_G(x,y) = \sum_A\subseteq E (x-1)^{k(A) - k(E)}(y-1)^{k(A) + |A| - |V|}\]
+</p>
+
+<p>
+Where \(k(A)\) is the number of connected components of \((V,A)\).
+</p>
+
+<p>
+From this statement of the Tutte polynomial one can guess that it happens to #P
+hard, as the sum is over the power set of the edges. Evaluating it at various
+points yields various results of interest, for example \(y=0\) gives the chromatic
+polynomial.
+</p>
+
+<p>
+The recursive edge deletion-contraction definition naturally decomposes the
+computation into a tree with a depth proportional to number of edges, \(|E|\) in
+\(G\).
+</p>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data="Deletion-contraction.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+
+<p>
+A natural recursive implementation will visit each of the approximately
+\(2^{|E|}\) vertices of this computation tree in a depth first ordering,
+performing an edge deletion and contraction at each level to generate the next.
+This computation tree represents the dependencies in computing the Tutte
+polynomial this way where each node is dependent upon the computation of its
+children. However this tree is not guaranteed to balanced, as the depths of each
+branch depend upon the structure of the graph. Furthermore we cannot easily
+start from simple graphs and add or subdivide edges to get to our input graph,
+so we must use a top down approach.
+</p>
+
+<p>
+However there is potentially redundant computation being performed at various
+points in the computation tree where two nodes correspond to graphs which are
+isomorphic, so the result of computing their Tutte polynomials will be the same.
+These can be memoized using a cache, however one needs have a method computing a
+unique ``canonical&rsquo;&rsquo; labeling of any graph so that all isomorphic graphs get the
+same labeling. Then one can store this canonically labeled graph in a cache
+using its hash as the key.
+</p>
+
+<p>
+Since one can compute the Tutte polynomial for certain classes of graphs exactly
+based upon properties of the class of graph, this allows for reducing the
+computation at a given node in the computation tree for which its corresponding
+graph satisfies certain properties. For example the Tutte polynomial of a tree
+on \(m\) edges is \(x^m\). The paper <i>Computing Tutte Polynomials</i> by Haggard,
+Pearce, Royle paper discuss several such reductions that they use in their
+program such as:
+</p>
+
+<ul class="org-ul">
+<li>if \(e\) is a loop, immediately reduce the graph to \(yT(G-e,x,y)\)</li>
+<li>if \(e\) is a bridge, immediately reduce the graph to \(xT(G/e,x,y)\)</li>
+<li>multiply \(T(G,x,y)\) over all biconnected components</li>
+<li>immediately reduce forrests, cycles, and multiedges</li>
+</ul>
+
+<p>
+These reductions give sequential time speedups. So when it comes to
+parallelizing this problem, the largest challenges to achieving linear speedup
+comes in the form of workload balance. Each process can independently compute a
+subtree of the computation however a static work partition will likely be
+unbalanced depending on the input graph. Therefore a dynamic scheduling will be
+necessary, however this introduces its own challenge since it will increase the
+amount of communication overhead. A parallel implementation the graph cache also
+poses its own challenges since one needs to decide how to synchronize this cache
+across processes while minimizing overhead. Since the computation tree is
+exponential, the storage requirement of the graph also grows exponentially, so
+in a sequential implementation one must decide on a cache replacement policy,
+which can have significant performance impacts. However a parallel
+implementation gives the opportunity to implement a more scalable graph cache
+since one can distribute it among the storage of all the processors. Such a
+distributed graph cache will also be challenging to implement with low
+communication overhead however one potential distributed cache model with lower
+communication overhead might be based upon a directory based memory cache model.
+This has the advantage of utilizing the scalable interconnects that many MPI
+systems have. In any parallel implementation of this cache one will certainly
+want to have a parameter which sets the granularity of the cache since at some
+point smaller graphs will be faster to just compute recursively than the
+communication overhead of finding them in a distributed cache. However for very
+large graphs, cache hits will mean large savings in computation time along that
+branch of the computation tree. The fact that cache hits can dramatically alter
+the commutation time for a given subtree of the computation tree further
+demonstrates the necessity of dynamic workload scheduling.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org923085d" class="outline-2">
+<h2 id="org923085d"><span class="section-number-2">3</span> Approach</h2>
+<div class="outline-text-2" id="text-3">
+</div>
+<div id="outline-container-org9f9cf21" class="outline-3">
+<h3 id="org9f9cf21"><span class="section-number-3">3.1</span> Sequential</h3>
+<div class="outline-text-3" id="text-3-1">
+<p>
+My original plan was to use the <code>nauty</code> graph isomorphism software written by
+Brendan McKay and make parallelizing the cacheing of isomorphic graphs the
+primary focus of this project. So I began by trying to just use the same graph
+data structures that <code>nauty</code> uses. <code>nauty</code> has both dense graph and sparse graph
+data structures where a dense graphs is represented by a bit-set adjacency
+matrix and the a sparse graph is represented as an adjacency list. However
+neither representation allows for multigraphs, which are necessary for
+recursively computing the Tutte polynomial. However the <code>nauty</code> graph data
+structures allow for coloring of vertices so it is possible to efficiently
+represent a multigraph using an undirected colored graph by taking a multiedge
+and turning it into a vertex colored with the multiplicity of the multiedge and
+connecting the colored vertex to the endpoints of the multiedge. As I was trying
+to implement the edge deletion and contraction and loop and bridge finding
+functions using the bit-set adjacency matrix <code>nauty</code> representation I found it
+incredibly difficult to debug and was having no success and getting the basic
+sequential recursive program working. After a while I gave up on that graph
+representation and tried using the <code>nauty</code> sparsegraph adjacency list
+representation however this proved no easier since dealing with writing graph
+search algorithms on multiedges in this way was giving me very difficult to
+debug code. As the deadlines were looming closer and closer and I had no working
+code I decided for the sake of having some parallel implementation that I would
+ditch the <code>natuy</code> graph representation and forgo using a graph cache so that I
+could just build my own simper multigraph data structure. I chose just a simple
+adjacency matrix of ints which made the graph search much easier to debug.
+</p>
+
+<p>
+The graph search portion I&rsquo;m referring to here isn&rsquo;t for the computing tree but
+for the actual multigraph itself. In order to find bridges in a graph one needs
+to do a dfs and determine biconnected components. Instead of using the classic
+lowpoint numbers DFS algorithm of Robert Tarjan for computing these biconnected
+components I instead used Jens M. Schmidt&rsquo;s algorithm which calculates chain
+decompositions from which it is easy to read of bridges and biconnected
+components. This was with the idea that it would more efficient to calculate
+other properties involved in reductions, such as ear decompositions, from the
+chain decomposition than having to do multiple different DFSs on the graph. Out
+of the reductions listed in the Background section I implemented the reduction
+of loops and bridges as they were the easiest (although still not trivial) to
+get working.
+</p>
+
+<p>
+Since I haven&rsquo;t implemented any of the other reductions or the graph cache, the
+performance of my sequential program is expectedly much worse than the reference
+implementation of Haggard, Pearce and Royle. I did however perform my regression
+testing against their implementation and verified my output matches theirs on
+all non-isomporphic graphs on up to seven vertices (<code>nauty</code> conveniently has a
+utility to produce such graphs).
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-orgd69fe7a" class="outline-2">
+<h2 id="orgd69fe7a"><span class="section-number-2">4</span> Parallel Implementation Challenges</h2>
+<div class="outline-text-2" id="text-4">
+<p>
+The first step I had to take was rewriting the natural recursive
+program, which utilized the stack to store the computation tree, into
+one that explicitly stored the computation tree in a managed stack.
+</p>
+
+<p>
+Once I had this ability to manually manage the recursion stack, then I was able
+to write a dynamically scheduled parallel implementation using a master-worker
+model in MPI. First the head (master) process executes Breath First Search on
+the computation tree going until a user defined number of graphs \(b\) in the
+computation tree have been generated. These nodes are stored in a queue as they
+are discovered. After there are \(b\) nodes in the queue, the head process begins
+sending these nodes to the worker processes, at which point the worker uses the
+recursive algorithm to compute the polynomial for its given graph. When a worker
+node completes, it sends it&rsquo;s computed polynomial back to the head process and
+receives a new graph to work on. As the head process receives the polynomials
+for the nodes in the computation tree it stores them back into a queue. Once it
+has received all the \(b\) computed polynomials from the workers, the head node
+combines them together as appropriate based upon the computation tree until it
+has gotten back to the root node in the computation tree which was the inputed
+graph at which point it outputs this polynomial. 
+</p>
+
+<p>
+In this design, all the head node since all the head node is doing is sending
+graphs to workers and receiving their computed polynomials. The workers should
+not have to wait long to receive a new graph however this is only true if the
+granularity parameter \(b\) is set such that the workers are working for longer
+then the expected communication time. Furthermore this design is limited in that
+the head node can only service one worker&rsquo;s request for a new graph at a time,
+so it introduces a sequentiality there.
+</p>
+</div>
+</div>
+
+<div id="outline-container-org2582d33" class="outline-2">
+<h2 id="org2582d33"><span class="section-number-2">5</span> Results</h2>
+<div class="outline-text-2" id="text-5">
+<p>
+I didn&rsquo;t have enough time to thoroughly assess the performance of my parallel
+implementation so currently I&rsquo;m getting speedups of less than one. The following
+plot shows us that indeed this is a problem exponential in the number of edges.
+However we see that the parallel program is performing worse.
+</p>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data="./obipy-resources/N76WJw.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+
+<p>
+The following shows a plot on the dependence on the granularity parameter
+described in the previous section.
+</p>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data="./obipy-resources/soFHf9.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+
+<p>
+process
+</p>
+
+<div class="figure">
+<p><object type="image/svg+xml" data="./obipy-resources/2JkNpF.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+
+
+<p>
+The last two plots were done by running the program on this graph:
+</p>
+
+
+<div class="figure">
+<p><object type="image/svg+xml" data=".//dre-hpr-edge13.dre.svg" class="org-svg">
+Sorry, your browser does not support SVG.</object>
+</p>
+</div>
+
+
+<p>
+I&rsquo;m sorry I don&rsquo;t have more analysis in here. I think there is a serious
+bottleneck in the communication somewhere, I just didn&rsquo;t have time to catch it.
+Most of the parallel performance analysis suffered because of how long it took
+me to get a correct working sequential implementation. I severely underestimated
+the complexity of implementing this in c.
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-org2684d2b" class="outline-2">
+<h2 id="org2684d2b"><span class="section-number-2">6</span> References</h2>
+<div class="outline-text-2" id="text-6">
+<ul class="org-ul">
+<li><i>Computing Tutte Polynomials</i> by Gary Haggard, David J. Pearce, and Gordon
+Royle (2010) Their C++ code (<a href="http://homepages.ecs.vuw.ac.nz/~djp/tutte/)">http://homepages.ecs.vuw.ac.nz/~djp/tutte/)</a> and
+is implemented in C++. served as my reference and I did regression testing
+against it. It implemented all the reductions along with using \texttt{nauty}
+to compute isomorphisms.</li>
+<li><i>A simple test on 2-vertex- and 2-edge-connectivity</i> by Jens M. Schmidt
+provided a better algorithm for determining bridges and biconnected components
+than the classic lowpoint numbers DFS of Robert Tarjan. Schmidt&rsquo;s algorithm
+calculates chain decompositions from which it is trivial to read of bridges
+and biconnected components. <a href="https://en.wikipedia.org/wiki/Tutte_polynomial">https://en.wikipedia.org/wiki/Tutte_polynomial</a></li>
+<li>Brendan D. McKay and Adolfo Piperno, Practical Graph Isomorphism, II, Journal
+of Symbolic Computation, 60 (2014) The reference on the <code>nauty</code> graph
+isomorphism and canonical labeling code.</li>
+<li>The Wikipedia page on the Tutte polynomial is a good reference for the
+background on the Tutte polynomial, also the computation tree figure is from
+this page (<a href="https://en.wikipedia.org/wiki/Tutte_polynomial">https://en.wikipedia.org/wiki/Tutte_polynomial</a>).</li>
+</ul>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="date">Date: May 9, 2018</p>
+<p class="author">Author: Akira Kyle</p>
+<p class="email">Email: <a href="mailto:akyle@cmu.edu">akyle@cmu.edu</a></p>
+<p class="date">Created: 2018-05-09 Wed 12:23</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>

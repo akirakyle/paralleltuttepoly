@@ -52,6 +52,7 @@ INITSEED: seed=416931912
 
 
 * setup
+
 #+begin_src bash :dir ~/class/parallel/project :results raw drawer
 rsync -azP --no-perms ~/class/parallel/project/nauty26r10 latedays:
 rsync -azP --no-perms ~/class/parallel/project/tuttepoly-v0.9.18 latedays:
@@ -145,11 +146,28 @@ function regress() {
     #multigengtest 7 1044
     #multidretest test
 }
-function timing() {
-    for i in `seq 12 35`; do
-    #nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mytutte | sed '2!d'
-    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mpitutte 4 12 | sed '2!d'
-    #nauty/geng -q 7 | sed $i'!d' | nauty/showg -qe | sed '1!d'
+function timing3() {
+    echo "for i in {4..35..1}; do nauty/geng -q 9 i:((i+1)) | sed '1!d' | mytutte | sed '2!d'"
+    for i in {4..35..2}; do
+    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mytutte | sed '2!d'
+    done
+}
+function mpitiming1() {
+    echo "for i in 4 8 16 32; do dretest hpr/edge15.dre | mpitutte i ((i * 3 / 2)) | sed '2!d'"
+    for i in 4 8 16 32; do
+    dretest hpr/edge15.dre | mpitutte $i $(($i * 3 / 2)) | sed '2!d'
+    done
+}
+function mpitiming2() {
+    echo "for i in {2..32}; do dretest hpr/edge13.dre | mpitutte 8 $i | sed '2!d'"
+    for i in {2..32}; do
+        dretest hpr/edge13.dre | mpitutte 8 $i | sed '2!d'
+    done
+}
+function mpitiming3() {
+    echo "for i in {4..35..2}; do nauty/geng -q 9 i:((i+1)) | sed '1!d' | mpitutte 8 12 | sed '2!d'"
+    for i in {4..35..2}; do
+    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mpitutte 8 12 | sed '2!d'
     done
 }
 #+end_src
@@ -158,10 +176,32 @@ function timing() {
 :RESULTS:
 :END:
 
-#+begin_src bash :tangle latedays.sh
+#+begin_src bash :noweb yes :tangle seqtiming.sh
 #!/bin/bash
+{{{test_fns}}}
 cd $PBS_O_WORKDIR
-mpirun -n2 ./tutte-mpi
+timing3
+#+end_src
+
+#+begin_src bash :noweb yes :tangle timing1.sh
+#!/bin/bash
+{{{test_fns}}}
+cd $PBS_O_WORKDIR
+mpitiming1
+#+end_src
+
+#+begin_src bash :noweb yes :tangle timing2.sh
+#!/bin/bash
+{{{test_fns}}}
+cd $PBS_O_WORKDIR
+mpitiming2
+#+end_src
+
+#+begin_src bash :noweb yes :tangle timing3.sh
+#!/bin/bash
+{{{test_fns}}}
+cd $PBS_O_WORKDIR
+mpitiming3
 #+end_src
 
 #+RESULTS:
@@ -207,6 +247,170 @@ mpimultigengtest 5 34 4
 #+RESULTS:
 :RESULTS:
 :END:
+
+* Results
+
+** old
+#+begin_example
+for i in {2 4 8 16 32}; do
+dretest hpr/edge13.dre | mpitutte $i 64 | sed '2!d'
+Time : 2.93
+Time : 2.94
+Time : 3.22
+Time : 4.38
+Time : 13.49
+#+end_example
+
+#+begin_example
+for i in {2 4 8 16 32}; do
+dretest hpr/edge13.dre | mpitutte $i 32 | sed '2!d'
+Time : 2.94
+Time : 3.00
+Time : 3.21
+Time : 5.49
+Time : 11.75
+#+end_example
+
+#+begin_example
+timing procs: {4 8 16 32}, edge14.dre
+Time : 16.02
+Time : 17.55
+Time : 26.69
+Time : 65.27
+#+end_example
+
+#+begin_example
+timing edges: {2..45..4} geng 10
+Time : 0.00
+Time : 0.00
+Time : 0.00
+Time : 0.00
+Time : 0.04
+Time : 0.26
+Time : 1.49
+Time : 5.32
+Time : 27.78
+Time : 267.37
+#+end_example
+*** timing 1
+
+timing procs: 4 8 16 32, edge14.dre
+Time : 16.34
+Time : 17.56
+Time : 18.45
+Time : 61.18
+timing procs: 4 8 16 32, edge14.dre, s64
+Time : 15.95
+Time : 17.50
+Time : 29.49
+Time : 66.09
+timing procs: 4 8 16 32, edge15.dre, s64
+Time : 43.15
+Time : 48.04
+Time : 135.89
+Time : 173.12
+
+*** seqtiming
+
+seq timing: {4..44..4}, n=9
+Time : 0.00
+Time : 0.00
+Time : 0.00
+Time : 0.00
+Time : 0.03
+Time : 0.18
+Time : 0.71
+Time : 2.64
+Time : 7.70
+seq timing: {4..44..4}, geng 10
+Time : 0.00
+Time : 0.00
+Time : 0.00
+Time : 0.00
+Time : 0.03
+Time : 0.21
+Time : 1.13
+Time : 4.82
+Time : 17.35
+Time : 51.98
+Time : 140.41
+
+*** timing 2
+
+timing split: 10 20 30, edge13.dre
+Time : 2.99
+Time : 3.00
+timing split: 10 20 30 40 50 60 70 80 90, edge13.dre, n4
+Time : 2.94
+Time : 2.95
+Time : 2.97
+Time : 2.96
+Time : 2.95
+Time : 2.97
+Time : 3.00
+Time : 2.95
+
+
+
+** new
+
+for i in 4 8 16 32; do dretest hpr/edge15.dre | mpitutte i ((i * 3 / 2)) | sed '2!d'
+Time : 19.72
+Time : 20.97
+Time : 70.60
+Time : 164.53
+
+for i in {2..32}; do dretest hpr/edge13.dre | mpitutte 8  | sed '2!d'
+Time : 1.45
+Time : 1.48
+Time : 1.44
+Time : 1.46
+Time : 1.45
+Time : 1.47
+Time : 1.45
+Time : 1.43
+Time : 1.45
+Time : 1.45
+Time : 1.43
+Time : 1.43
+Time : 3.26
+Time : 3.21
+Time : 3.24
+Time : 3.21
+Time : 3.22
+Time : 3.22
+Time : 3.22
+Time : 3.21
+Time : 3.22
+Time : 3.21
+Time : 3.21
+Time : 3.30
+Time : 3.21
+Time : 3.23
+Time : 3.22
+Time : 3.26
+Time : 3.21
+Time : 3.22
+Time : 3.22
+
+for i in {4..35..2}; do nauty/geng -q 9 i:((i+1)) | sed '1!d' | mpitutte 8 12 | sed '2!d'
+Time : 0.00
+Time : 0.00
+Time : 0.00
+Time : 0.00
+Time : 0.00
+Time : 0.01
+Time : 0.02
+Time : 0.04
+Time : 0.11
+Time : 0.31
+Time : 0.68
+Time : 1.27
+Time : 2.22
+Time : 3.40
+Time : 6.05
+Time : 11.23
+
 
 * local variables
 # Local Variables:

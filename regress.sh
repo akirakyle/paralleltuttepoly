@@ -18,7 +18,9 @@ function dretest() {
 }
 function dotviz() {
     nauty/showg -d | nauty/dretodot | dot -Tpdf -o output/viz/$1  2> /dev/null
-# echo $graphdot | dot2tex -f tikz > $fname.tex
+}
+function dotvistex() {
+    echo $graphdot | dot2tex -f tikz# > $fname.tex
 # pdflatex $fname.tex
 }
 function multigengtest() {
@@ -57,10 +59,27 @@ function regress() {
     #multigengtest 7 1044
     #multidretest test
 }
-function timing() {
-    for i in `seq 12 35`; do
-    #nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mytutte | sed '2!d'
-    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mpitutte 4 12 # | sed '2!d'
-    #nauty/geng -q 7 | sed $i'!d' | nauty/showg -qe | sed '1!d'
+function timing3() {
+    echo "for i in {4..35..1}; do nauty/geng -q 9 i:((i+1)) | sed '1!d' | mytutte | sed '2!d'"
+    for i in {4..35..2}; do
+    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mytutte | sed '2!d'
+    done
+}
+function mpitiming1() {
+    echo "for i in 4 8 16 32; do dretest hpr/edge15.dre | mpitutte i ((i * 3 / 2)) | sed '2!d'"
+    for i in 4 8 16 32; do
+    dretest hpr/edge15.dre | mpitutte $i $(($i * 3 / 2)) | sed '2!d'
+    done
+}
+function mpitiming2() {
+    echo "for i in {2..32}; do dretest hpr/edge13.dre | mpitutte 8 $i | sed '2!d'"
+    for i in {2..32}; do
+        dretest hpr/edge13.dre | mpitutte 8 $i | sed '2!d'
+    done
+}
+function mpitiming3() {
+    echo "for i in {4..35..2}; do nauty/geng -q 9 i:((i+1)) | sed '1!d' | mpitutte 8 12 | sed '2!d'"
+    for i in {4..35..2}; do
+    nauty/geng -q 9 $i:$((i+1)) | sed '1!d' | mpitutte 8 12 | sed '2!d'
     done
 }
